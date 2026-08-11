@@ -5,7 +5,7 @@ import type { GameScene } from "./GameScene";
 
 const PANEL_MARGIN = 12;
 const HUD_Y = PANEL_MARGIN;
-const MINIMAP_Y = 56;
+const MINIMAP_Y = 76;
 const MINIMAP_RESERVED_HEIGHT = 210;
 const EQUIP_Y = MINIMAP_Y + MINIMAP_RESERVED_HEIGHT;
 
@@ -49,7 +49,9 @@ export class UIScene extends Phaser.Scene {
     this.minimap.redraw(mazeGrid, fogOfWar, playerSprite.tileX, playerSprite.tileY);
 
     const player = playerSprite.logic;
-    this.hpText.setText(`Level: ${gameScene.levelNumber}\nHP: ${player.hp}/${player.maxHp}\nGold: ${inventory.gold}`);
+    this.hpText.setText(
+      `Level: ${gameScene.levelNumber}\nBest: ${gameScene.highestLevelReached}\nHP: ${player.hp}/${player.maxHp}\nGold: ${inventory.gold}`,
+    );
 
     const eq = inventory.equipped;
     this.equipText.setText(

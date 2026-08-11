@@ -6,6 +6,7 @@ export interface PlayerProfile {
   equippedIds: Partial<Record<EquipmentSlot, string>>;
   ownedIds: string[];
   levelNumber: number;
+  highestLevelReached: number;
   gold: number;
 }
 
@@ -45,7 +46,7 @@ function resolveItemId(id: string): ItemDef | undefined {
 
 /** Inventory (owned/equipped items by reference) -> plain-data PlayerProfile (items by id),
  * so saves stay stable even if item stats get rebalanced later. */
-export function buildProfile(inventory: Inventory, levelNumber: number): PlayerProfile {
+export function buildProfile(inventory: Inventory, levelNumber: number, highestLevelReached: number): PlayerProfile {
   const equippedIds: Partial<Record<EquipmentSlot, string>> = {};
   for (const [slot, item] of Object.entries(inventory.equipped)) {
     if (item) equippedIds[slot as EquipmentSlot] = item.id;
@@ -54,6 +55,7 @@ export function buildProfile(inventory: Inventory, levelNumber: number): PlayerP
     equippedIds,
     ownedIds: inventory.owned.map((item) => item.id),
     levelNumber,
+    highestLevelReached,
     gold: inventory.gold,
   };
 }

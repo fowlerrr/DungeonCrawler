@@ -11,8 +11,9 @@ describe("buildProfile / applyProfile", () => {
     inventory.addItem(ITEMS[0]);
     inventory.gold = 42;
 
-    const profile = buildProfile(inventory, 5);
+    const profile = buildProfile(inventory, 5, 7);
     expect(profile.levelNumber).toBe(5);
+    expect(profile.highestLevelReached).toBe(7);
     expect(profile.gold).toBe(42);
     expect(profile.equippedIds.weapon).toBe(WEAPONS[0].id);
 
@@ -26,7 +27,13 @@ describe("buildProfile / applyProfile", () => {
 
   it("silently drops ids that no longer exist in the item catalog", () => {
     const restored = new Inventory();
-    applyProfile(restored, { equippedIds: { weapon: "nonexistent_id" }, ownedIds: ["nonexistent_id"], levelNumber: 1, gold: 0 });
+    applyProfile(restored, {
+      equippedIds: { weapon: "nonexistent_id" },
+      ownedIds: ["nonexistent_id"],
+      levelNumber: 1,
+      highestLevelReached: 1,
+      gold: 0,
+    });
 
     expect(restored.equipped.weapon).toBeUndefined();
     expect(restored.owned).toEqual([]);

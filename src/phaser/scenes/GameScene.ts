@@ -53,6 +53,8 @@ export class GameScene extends Phaser.Scene {
   /** Permanent across levels (unlike keyring/monsters/etc, never reset in buildLevel). */
   inventory!: Inventory;
   levelNumber = 1;
+  /** Persists across level resets (death) unlike levelNumber - only ever increases. */
+  highestLevelReached = 1;
 
   private inputController!: InputController;
   private fogRenderer!: FogOfWarRenderer;
@@ -81,6 +83,8 @@ export class GameScene extends Phaser.Scene {
     if (savedProfile) {
       applyProfile(this.inventory, savedProfile);
       this.levelNumber = savedProfile.levelNumber;
+      // Older saves predate this field - fall back to the saved level so it's not lost.
+      this.highestLevelReached = savedProfile.highestLevelReached ?? savedProfile.levelNumber;
     }
 
     this.buildLevel(Date.now());
@@ -182,7 +186,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private persist(): void {
-    this.saveManager.save(buildProfile(this.inventory, this.levelNumber));
+    this.saveManager.save(buildProfile(this.inventory, this.levelNumber, this.highestLevelReached));
   }
 
   private spawnHealthPickup(x: number, y: number): void {
@@ -200,13 +204,17 @@ export class GameScene extends Phaser.Scene {
 
   private completeLevel(): void {
     this.levelNumber += 1;
+    this.highestLevelReached = Math.max(this.highestLevelReached, this.levelNumber);
     this.persist();
     this.buildLevel(Date.now());
   }
 
-  /** Called by GameOverScene once the player continues - restarts the SAME level with a new
-   * seed. Equipment/gold carry over untouched since only buildLevel (level-scoped state) reruns. */
+  /** Called by GameOverScene once the player continues - drops back to level 1 with a fresh
+   * (full-health) player. Equipment/gold carry over untouched since only buildLevel (level-scoped
+   * state) reruns; highestLevelReached is deliberately not reset. */
   restartAfterDeath(): void {
+    this.levelNumber = 1;
+    this.persist();
     this.buildLevel(Date.now());
   }
 

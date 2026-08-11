@@ -14,7 +14,7 @@ export const MONSTERS: MonsterDef[] = [
   {
     id: "goblin",
     name: "Goblin",
-    baseHp: 26,
+    baseHp: 22,
     baseDamage: 6,
     moveSpeed: 75,
     aiType: "chase",

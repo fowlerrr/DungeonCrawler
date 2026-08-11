@@ -8,7 +8,9 @@ export const GAME_HEIGHT = 600;
 export const VISION_RADIUS_TILES = 5;
 
 export const PLAYER_MOVE_DURATION_MS = 150; // time to animate one tile-step
-export const PLAYER_BASE_HP = 20;
+// Raised from 20 after playtest feedback that monster/boss contact damage (see LevelConfig's
+// damage multipliers) was killing the player in 2-3 hits as early as level 2.
+export const PLAYER_BASE_HP = 30;
 export const PLAYER_ATTACK_COOLDOWN_MS = 400;
 export const PLAYER_ATTACK_DAMAGE = 6;
 export const PLAYER_ATTACK_RANGE = 40; // pixels

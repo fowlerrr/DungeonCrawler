@@ -35,7 +35,9 @@ export function getLevelConfig(levelNumber: number): LevelConfig {
     lockCount: clamp(2 + Math.floor(n / 2), 2, 10),
     monsterCount: clamp(5 + n * 2, 5, 40),
     monsterHpMult: 1 + (n - 1) * 0.15,
-    monsterDamageMult: 1 + (n - 1) * 0.1,
+    // Slowed from 0.1/level and, for the boss, dropped the +20% level-1 head start - playtest
+    // feedback was that damage taken was already punishing by level 2.
+    monsterDamageMult: 1 + (n - 1) * 0.06,
     chestCount: clamp(3 + Math.floor(n / 2), 3, 12),
     rarityWeightBonus: {
       normal: 1,
@@ -44,6 +46,6 @@ export function getLevelConfig(levelNumber: number): LevelConfig {
       legendary: 1 + (n - 1) * 1.2,
     },
     bossHpMult: 1.5 + (n - 1) * 0.25,
-    bossDamageMult: 1.2 + (n - 1) * 0.15,
+    bossDamageMult: 1 + (n - 1) * 0.12,
   };
 }
