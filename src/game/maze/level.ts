@@ -1,6 +1,7 @@
 import { braidMaze } from "./braiding";
 import { generateBaseMaze } from "./generator";
-import { placeLocks, type DoorInstance, type KeyPlacement } from "./locks";
+import { placeLocks, type DoorInstance, type KeyPlacement, type VaultRegion } from "./locks";
+import { pickFarCell } from "./placement";
 import { rasterizeMaze } from "./raster";
 import { Rng } from "./rng";
 import { cellKey, type Cell, type TileGrid } from "./types";
@@ -12,6 +13,7 @@ export interface GeneratedLevel {
   grid: TileGrid;
   doors: DoorInstance[];
   keys: KeyPlacement[];
+  vaults: VaultRegion[];
   entrance: Cell;
   exit: Cell;
 }
@@ -34,21 +36,25 @@ export interface LevelGenerationOptions {
 export function generateLevel(seed: number, options: LevelGenerationOptions): GeneratedLevel {
   const { cols, rows, braidFactor, lockCount, maxAttempts = 10 } = options;
   const entrance: Cell = { x: 0, y: 0 };
-  const exit: Cell = { x: cols - 1, y: rows - 1 };
+  // Keeps the exit from ever landing suspiciously close to the entrance while still allowing
+  // anywhere else on the grid, rather than always the far corner.
+  const minExitDistance = Math.floor((cols + rows) / 2);
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const rng = new Rng(seed + attempt);
+    const exit = pickFarCell(cols, rows, entrance, minExitDistance, rng);
     const graph = generateBaseMaze(cols, rows, rng, entrance);
     braidMaze(graph, braidFactor, rng);
-    const { doors, keys } = placeLocks(graph, lockCount, rng, entrance, new Set([cellKey(exit)]));
+    const { doors, keys, vaults } = placeLocks(graph, lockCount, rng, entrance, exit, new Set([cellKey(exit)]));
 
     if (validateSolvable(graph, doors, keys, entrance, exit)) {
-      return { graph, grid: rasterizeMaze(graph), doors, keys, entrance, exit };
+      return { graph, grid: rasterizeMaze(graph), doors, keys, vaults, entrance, exit };
     }
   }
 
   const rng = new Rng(seed);
+  const exit = pickFarCell(cols, rows, entrance, minExitDistance, rng);
   const graph = generateBaseMaze(cols, rows, rng, entrance);
   braidMaze(graph, braidFactor, rng);
-  return { graph, grid: rasterizeMaze(graph), doors: [], keys: [], entrance, exit };
+  return { graph, grid: rasterizeMaze(graph), doors: [], keys: [], vaults: [], entrance, exit };
 }

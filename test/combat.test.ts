@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyDamage, canAttack, heal, isWithinAttackCone, selectAttackTargets } from "../src/game/entities/Combat";
+import { applyDamage, canAttack, heal, isWithinAttackCone, mitigateDamage, selectAttackTargets } from "../src/game/entities/Combat";
 import { Player } from "../src/game/entities/Player";
 
 describe("Combat", () => {
@@ -20,6 +20,21 @@ describe("Combat", () => {
     player.lastAttackAt = 1000;
     expect(canAttack(player, 1200, 400)).toBe(false);
     expect(canAttack(player, 1400, 400)).toBe(true);
+  });
+});
+
+describe("mitigateDamage", () => {
+  it("subtracts defense from the raw amount", () => {
+    expect(mitigateDamage(10, 4)).toBe(6);
+  });
+
+  it("floors at 1 rather than reducing to 0 or negative", () => {
+    expect(mitigateDamage(5, 5)).toBe(1);
+    expect(mitigateDamage(5, 100)).toBe(1);
+  });
+
+  it("is a no-op with zero defense", () => {
+    expect(mitigateDamage(7, 0)).toBe(7);
   });
 });
 

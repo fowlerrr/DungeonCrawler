@@ -45,7 +45,10 @@ export function getLevelConfig(levelNumber: number): LevelConfig {
       epic: 1 + (n - 1) * 0.6,
       legendary: 1 + (n - 1) * 1.2,
     },
-    bossHpMult: 1.5 + (n - 1) * 0.25,
-    bossDamageMult: 1 + (n - 1) * 0.12,
+    // Lowered both the level-1 base and early growth after feedback that the boss was
+    // consistently the hardest part of a level even early on - ramps up faster after that to
+    // land close to the old curve by level 8+, so late-game difficulty is largely unchanged.
+    bossHpMult: 1 + (n - 1) * 0.3,
+    bossDamageMult: 0.8 + (n - 1) * 0.15,
   };
 }

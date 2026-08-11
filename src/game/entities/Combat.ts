@@ -12,6 +12,13 @@ export function applyDamage(target: { hp: number }, amount: number): void {
   target.hp = Math.max(0, target.hp - amount);
 }
 
+/** Flat damage reduction from defense (armor + accessory + PlayerProgression's bonusDefense) -
+ * floored at 1 so stacking defense can make a hit trivial but never a no-op, which would make
+ * some monsters permanently harmless rather than just easy. */
+export function mitigateDamage(amount: number, defense: number): number {
+  return Math.max(1, amount - defense);
+}
+
 export function heal(target: { hp: number; maxHp: number }, amount: number): void {
   target.hp = Math.min(target.maxHp, target.hp + amount);
 }

@@ -24,3 +24,16 @@ export function rollLoot(rng: Rng, pool: readonly ItemDef[], weightBonus: Rarity
   const candidates = pool.filter((item) => item.rarity === tier);
   return rng.pick(candidates.length > 0 ? candidates : pool);
 }
+
+const VAULT_RARITY_MULTIPLIER = 1.5;
+
+/** A locked vault's chest rolls slightly better odds than a regular one, on top of whatever
+ * LevelConfig already grants for the current level - the reward for bothering to find the key. */
+export function boostForVault(weightBonus: RarityWeightBonus): RarityWeightBonus {
+  return {
+    ...weightBonus,
+    rare: (weightBonus.rare ?? 1) * VAULT_RARITY_MULTIPLIER,
+    epic: (weightBonus.epic ?? 1) * VAULT_RARITY_MULTIPLIER,
+    legendary: (weightBonus.legendary ?? 1) * VAULT_RARITY_MULTIPLIER,
+  };
+}

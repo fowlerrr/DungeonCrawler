@@ -16,10 +16,13 @@ import {
 } from "../../config/constants";
 import { ALL_ITEMS } from "../../game/data/items";
 import { BOSS, MONSTERS } from "../../game/data/monsters";
-import { applyDamage, canAttack, canBeHit, heal, selectAttackTargets } from "../../game/entities/Combat";
+import type { ItemDef } from "../../game/data/types";
+import { applyDamage, canAttack, canBeHit, heal, mitigateDamage, selectAttackTargets } from "../../game/entities/Combat";
+import { findBlockingDoorAt } from "../../game/entities/doors";
 import { isTileOccupiedByMonster } from "../../game/entities/occupancy";
 import { Player } from "../../game/entities/Player";
 import { generateLevel } from "../../game/maze/level";
+import { hasLineOfSight } from "../../game/maze/lineOfSight";
 import { isTilePassable } from "../../game/maze/passability";
 import { pickRandomCells } from "../../game/maze/placement";
 import { Rng } from "../../game/maze/rng";
@@ -29,7 +32,8 @@ import { FogOfWar } from "../../game/systems/FogOfWar";
 import { Inventory } from "../../game/systems/Inventory";
 import { Keyring } from "../../game/systems/Keyring";
 import { getLevelConfig } from "../../game/systems/LevelConfig";
-import { rollLoot } from "../../game/systems/LootTable";
+import { boostForVault, rollLoot } from "../../game/systems/LootTable";
+import { getPlayerProgression } from "../../game/systems/PlayerProgression";
 import { applyProfile, buildProfile, LocalStorageSaveManager, type SaveManager } from "../../game/systems/SaveManager";
 import { DIRECTION_VECTORS } from "../../game/util/direction";
 import { InputController } from "../input/InputController";
@@ -38,6 +42,7 @@ import { ChestSprite } from "../objects/ChestSprite";
 import { DoorSprite } from "../objects/DoorSprite";
 import { HealthPickupSprite } from "../objects/HealthPickupSprite";
 import { KeyPickupSprite } from "../objects/KeyPickupSprite";
+import { spawnLootPopup } from "../objects/LootPopup";
 import { MonsterSprite } from "../objects/MonsterSprite";
 import { PlayerSprite } from "../objects/PlayerSprite";
 import { FogOfWarRenderer } from "../render/FogOfWarRenderer";
@@ -72,19 +77,26 @@ export class GameScene extends Phaser.Scene {
     super(SCENE_KEYS.GAME);
   }
 
-  create(): void {
+  /** `fresh: true` (from MenuScene's New Game button) wipes any existing save and starts
+   * clean; omitted or false (Continue, or GameScene started with no data at all) resumes it. */
+  create(data: { fresh?: boolean } = {}): void {
     this.inputController = new InputController(this);
     this.inventory = new Inventory();
     this.saveManager = new LocalStorageSaveManager();
     this.levelNumber = 1;
+    this.highestLevelReached = 1;
     this.cameras.main.setViewport(0, 0, MAZE_VIEW_WIDTH, this.scale.height);
 
-    const savedProfile = this.saveManager.load();
-    if (savedProfile) {
-      applyProfile(this.inventory, savedProfile);
-      this.levelNumber = savedProfile.levelNumber;
-      // Older saves predate this field - fall back to the saved level so it's not lost.
-      this.highestLevelReached = savedProfile.highestLevelReached ?? savedProfile.levelNumber;
+    if (data.fresh) {
+      this.saveManager.clear();
+    } else {
+      const savedProfile = this.saveManager.load();
+      if (savedProfile) {
+        applyProfile(this.inventory, savedProfile);
+        this.levelNumber = savedProfile.levelNumber;
+        // Older saves predate this field - fall back to the saved level so it's not lost.
+        this.highestLevelReached = savedProfile.highestLevelReached ?? savedProfile.levelNumber;
+      }
     }
 
     this.buildLevel(Date.now());
@@ -134,6 +146,13 @@ export class GameScene extends Phaser.Scene {
 
   private isTilePassable(tx: number, ty: number): boolean {
     if (!this.mazeGrid) return false;
+
+    const blockingDoor = findBlockingDoorAt(this.blockingDoors, tx, ty);
+    if (blockingDoor && this.keyring.has(blockingDoor.doorId)) {
+      this.keyring.consume(blockingDoor.doorId);
+      blockingDoor.open();
+    }
+
     const blockedTiles = new Set(
       this.blockingDoors.filter((door) => door.active).map((door) => `${door.tileX},${door.tileY}`),
     );
@@ -153,7 +172,8 @@ export class GameScene extends Phaser.Scene {
     const player = playerSprite.logic;
     const weapon = this.inventory.equipped.weapon;
     const cooldownMs = weapon?.stats.cooldownMs ?? PLAYER_ATTACK_COOLDOWN_MS;
-    const damage = weapon?.stats.damage ?? PLAYER_ATTACK_DAMAGE;
+    const range = weapon?.stats.range ?? PLAYER_ATTACK_RANGE;
+    const damage = (weapon?.stats.damage ?? PLAYER_ATTACK_DAMAGE) + getPlayerProgression(this.highestLevelReached).bonusDamage;
 
     const now = this.time.now;
     if (!canAttack(player, now, cooldownMs)) return;
@@ -161,13 +181,15 @@ export class GameScene extends Phaser.Scene {
 
     spawnAttackSwipe(this, playerSprite.x, playerSprite.y, playerSprite.facing);
 
+    // Range alone isn't enough for a ranged weapon - a wall between attacker and target blocks
+    // the hit exactly like it blocks movement, so a bow can't shoot through the maze.
     const targets = selectAttackTargets(
       playerSprite,
       playerSprite.facing,
-      PLAYER_ATTACK_RANGE,
+      range,
       PLAYER_ATTACK_CONE_HALF_ANGLE_DEG,
       this.monsterSprites,
-    );
+    ).filter((monster) => hasLineOfSight(this.mazeGrid!, playerSprite.x, playerSprite.y, monster.x, monster.y));
     for (const monster of targets) {
       applyDamage(monster.logic, damage);
       if (monster.logic.isDead) {
@@ -187,6 +209,13 @@ export class GameScene extends Phaser.Scene {
 
   private persist(): void {
     this.saveManager.save(buildProfile(this.inventory, this.levelNumber, this.highestLevelReached));
+  }
+
+  /** Called by UIScene's inventory panel - equips the given (already-owned) item and persists
+   * immediately, same as any other equipment change. */
+  equipItem(item: ItemDef): void {
+    this.inventory.equip(item);
+    this.persist();
   }
 
   private spawnHealthPickup(x: number, y: number): void {
@@ -239,7 +268,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, maze.widthPx, maze.heightPx);
 
     const entranceTile = cellToTile(level.entrance);
-    const player = new Player(PLAYER_BASE_HP);
+    const player = new Player(PLAYER_BASE_HP + getPlayerProgression(this.highestLevelReached).bonusHp);
     this.playerSprite = new PlayerSprite(this, entranceTile.tx, entranceTile.ty, player);
 
     this.cameras.main.startFollow(this.playerSprite, true, 0.15, 0.15);
@@ -260,13 +289,8 @@ export class GameScene extends Phaser.Scene {
       keysGroup.add(keySprite);
     }
 
-    this.physics.add.overlap(this.playerSprite, doorsGroup, (_player, doorObj) => {
-      const door = doorObj as DoorSprite;
-      if (this.keyring.has(door.doorId)) {
-        this.keyring.consume(door.doorId);
-        door.open();
-      }
-    });
+    // Door unlocking itself happens in isTilePassable (a locked door tile is only ever reached
+    // via a tile-step attempt, never a physics overlap - see findBlockingDoorAt).
     this.physics.add.overlap(this.playerSprite, keysGroup, (_player, keyObj) => {
       const key = keyObj as KeyPickupSprite;
       this.keyring.collect(key.doorId);
@@ -282,6 +306,9 @@ export class GameScene extends Phaser.Scene {
 
     const excludedCells = new Set<string>([cellKey(level.entrance), cellKey(level.exit)]);
     for (const key of level.keys) excludedCells.add(cellKey(key.cell));
+    // Vault cells get their own dedicated chest below and stay monster-free - they're meant to
+    // read as a small reward room behind the door, not part of the general spawn pool.
+    for (const vault of level.vaults) for (const cell of vault.cells) excludedCells.add(cellKey(cell));
 
     const monsterRng = new Rng(seed + 777);
     const monsterCells = pickRandomCells(config.mazeCols, config.mazeRows, config.monsterCount, monsterRng, excludedCells);
@@ -310,7 +337,10 @@ export class GameScene extends Phaser.Scene {
       const player = this.playerSprite!.logic;
       if (!canBeHit(player, this.time.now, MONSTER_CONTACT_DAMAGE_COOLDOWN_MS)) return;
       player.lastHitAt = this.time.now;
-      applyDamage(player, monster.logic.damage);
+      const armorDefense = this.inventory.equipped.armor?.stats.defense ?? 0;
+      const accessoryDefense = this.inventory.equipped.accessory?.stats.defense ?? 0;
+      const totalDefense = armorDefense + accessoryDefense + getPlayerProgression(this.highestLevelReached).bonusDefense;
+      applyDamage(player, mitigateDamage(monster.logic.damage, totalDefense));
     });
     // The player's body is non-pushable (see PlayerSprite), so this collider stops monsters
     // from walking onto/through the player without ever displacing the player themselves.
@@ -330,14 +360,20 @@ export class GameScene extends Phaser.Scene {
       const { x, y } = cellCenterPx(cell);
       chestGroup.add(new ChestSprite(this, x, y));
     }
+    for (const vault of level.vaults) {
+      const { x, y } = cellCenterPx(vault.cells[0]);
+      chestGroup.add(new ChestSprite(this, x, y, true));
+    }
     this.physics.add.overlap(this.playerSprite, chestGroup, (_player, chestObj) => {
       const chest = chestObj as ChestSprite;
-      const item = rollLoot(chestRng, ALL_ITEMS, config.rarityWeightBonus);
+      const weightBonus = chest.isVault ? boostForVault(config.rarityWeightBonus) : config.rarityWeightBonus;
+      const item = rollLoot(chestRng, ALL_ITEMS, weightBonus);
       if (item.kind === "consumable") {
         heal(this.playerSprite!.logic, item.stats.healAmount ?? 0);
       } else {
         this.inventory.addItem(item);
       }
+      spawnLootPopup(this, chest.x, chest.y, item);
       chest.destroy();
       this.persist();
     });

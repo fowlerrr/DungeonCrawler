@@ -61,9 +61,12 @@ export function buildProfile(inventory: Inventory, levelNumber: number, highestL
 }
 
 /** Reverse of buildProfile - resolves saved ids back against the current item catalog, so an
- * id that no longer exists (e.g. removed content) is silently dropped rather than erroring. */
+ * id that no longer exists (e.g. removed content) is silently dropped rather than erroring.
+ * Also dedupes by id: older saves (from before Inventory.addItem deduped on the way in) can
+ * still have the same item saved multiple times, and this is the one place that data gets
+ * read back in, so it's the right boundary to clean it up. */
 export function applyProfile(inventory: Inventory, profile: PlayerProfile): void {
-  inventory.owned = profile.ownedIds.map(resolveItemId).filter((item): item is ItemDef => item !== undefined);
+  inventory.owned = [...new Set(profile.ownedIds)].map(resolveItemId).filter((item): item is ItemDef => item !== undefined);
   inventory.gold = profile.gold;
   inventory.equipped = {};
   for (const [slot, id] of Object.entries(profile.equippedIds)) {

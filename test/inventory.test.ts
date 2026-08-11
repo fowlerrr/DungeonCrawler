@@ -35,4 +35,21 @@ describe("Inventory", () => {
     expect(inv.equipped.weapon).toBeUndefined();
     expect(inv.owned).toContain(potion);
   });
+
+  it("does not add a second copy of an already-owned item", () => {
+    const inv = new Inventory();
+    inv.addItem(sword);
+    inv.addItem(sword);
+    expect(inv.owned).toEqual([sword]);
+  });
+
+  it("a duplicate pickup after switching weapons doesn't re-add or re-equip it", () => {
+    const inv = new Inventory();
+    inv.addItem(sword);
+    inv.addItem(axe);
+    inv.equip(axe);
+    inv.addItem(sword);
+    expect(inv.owned).toEqual([sword, axe]);
+    expect(inv.equipped.weapon).toBe(axe);
+  });
 });

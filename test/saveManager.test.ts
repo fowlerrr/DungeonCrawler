@@ -38,4 +38,17 @@ describe("buildProfile / applyProfile", () => {
     expect(restored.equipped.weapon).toBeUndefined();
     expect(restored.owned).toEqual([]);
   });
+
+  it("dedupes ownedIds from a save predating Inventory.addItem's dedup", () => {
+    const restored = new Inventory();
+    applyProfile(restored, {
+      equippedIds: {},
+      ownedIds: [WEAPONS[0].id, WEAPONS[0].id, ITEMS[0].id, WEAPONS[0].id],
+      levelNumber: 1,
+      highestLevelReached: 1,
+      gold: 0,
+    });
+
+    expect(restored.owned.map((i) => i.id)).toEqual([WEAPONS[0].id, ITEMS[0].id]);
+  });
 });

@@ -1,9 +1,17 @@
-import { edgeKey, findBridges, type MazeGraph } from "./graph";
+import { edgeKey, findBridges, reachableCells, type MazeGraph } from "./graph";
 import type { Rng } from "./rng";
 import { cellKey, type Cell } from "./types";
 
 export const DOOR_COLORS = ["red", "blue", "green", "yellow"] as const;
 export type DoorColor = (typeof DOOR_COLORS)[number];
+
+/** Small pockets of cells with no route in or out except through one locked door - see
+ * placeLocks. GameScene uses these to place bonus loot and keep them out of the normal
+ * monster/chest spawn pool. */
+export interface VaultRegion {
+  doorId: string;
+  cells: Cell[];
+}
 
 export interface DoorInstance {
   id: string;
@@ -24,71 +32,76 @@ export interface KeyPlacement {
 export interface LockPlacementResult {
   doors: DoorInstance[];
   keys: KeyPlacement[];
+  vaults: VaultRegion[];
 }
 
+/** Cap on how many cells a single locked-off vault can contain - keeps them feeling like small
+ * side rooms rather than gating off a large chunk of the maze. */
+const MAX_VAULT_SIZE = 4;
+
 /**
- * Picks lock-worthy edges one at a time, only ever choosing an edge that is currently a
- * non-bridge in the graph with every previously-chosen lock also treated as removed. That
- * invariant is maintained inductively: the graph starts fully connected (guaranteed by the
- * generator), and removing a non-bridge edge can never disconnect it - so after every pick the
- * graph-minus-all-chosen-locks is still guaranteed fully connected. Locked doors end up as
- * optional shortcuts rather than mandatory gates: the player can always reach the exit and
- * every key without needing any key at all, which is what makes "no key ever locked behind a
- * door" true by construction rather than by luck. Bridge-based mandatory gating (locking the
- * sole route into a region) is a deliberately deferred v2 enhancement - see build plan.
+ * Locks real bridge edges - each chosen edge is the *only* route to some small pocket of cells,
+ * so the lock is a genuine gate, not a bypassable decoration. What keeps this safe (no key ever
+ * stranded behind a lock) is that every locked-off pocket is required to be a dead end: it can
+ * never contain the exit, another door's key, or overlap a previously chosen vault. Nothing of
+ * value is placed inside besides the vault's own bonus loot (see GameScene), so no other lock or
+ * the exit ever depends on getting through one - validateSolvable still runs as a final safety
+ * net regardless.
  */
 export function placeLocks(
   graph: MazeGraph,
   targetLockCount: number,
   rng: Rng,
   entrance: Cell,
+  exit: Cell,
   excludedCells: ReadonlySet<string> = new Set(),
 ): LockPlacementResult {
-  const lockedEdgeKeys = new Set<string>();
-  const chosenEdges: { a: Cell; b: Cell; key: string }[] = [];
+  const bridges = findBridges(graph, entrance);
+  const pool = graph.edges.filter((e) => e.open && bridges.has(edgeKey(e.a, e.b)));
 
-  for (let i = 0; i < targetLockCount; i++) {
-    const bridges = findBridges(graph, entrance, lockedEdgeKeys);
-    const candidates = graph.edges.filter((e) => {
-      if (!e.open) return false;
-      const ek = edgeKey(e.a, e.b);
-      return !lockedEdgeKeys.has(ek) && !bridges.has(ek);
-    });
-    if (candidates.length === 0) break; // no more edges can be safely locked
+  const doors: DoorInstance[] = [];
+  const keys: KeyPlacement[] = [];
+  const vaults: VaultRegion[] = [];
+  const claimedCells = new Set<string>([cellKey(entrance), cellKey(exit), ...excludedCells]);
 
-    const chosen = rng.pick(candidates);
-    const ek = edgeKey(chosen.a, chosen.b);
-    lockedEdgeKeys.add(ek);
-    chosen.lockId = `door_${chosenEdges.length}`;
-    chosenEdges.push({ a: chosen.a, b: chosen.b, key: ek });
+  while (doors.length < targetLockCount && pool.length > 0) {
+    const idx = rng.nextInt(pool.length);
+    const [edge] = pool.splice(idx, 1);
+    const ek = edgeKey(edge.a, edge.b);
+
+    const reachableFromEntrance = reachableCells(graph, entrance, new Set([ek]));
+    const vaultCells: Cell[] = [];
+    for (let y = 0; y < graph.rows; y++) {
+      for (let x = 0; x < graph.cols; x++) {
+        const c = { x, y };
+        if (!reachableFromEntrance.has(cellKey(c))) vaultCells.push(c);
+      }
+    }
+
+    if (vaultCells.length === 0 || vaultCells.length > MAX_VAULT_SIZE) continue;
+    if (vaultCells.some((c) => claimedCells.has(cellKey(c)))) continue;
+
+    const doorId = `door_${doors.length}`;
+    doors.push({ id: doorId, edgeKey: ek, a: edge.a, b: edge.b, color: DOOR_COLORS[doors.length % DOOR_COLORS.length] });
+    vaults.push({ doorId, cells: vaultCells });
+    for (const c of vaultCells) claimedCells.add(cellKey(c));
   }
 
-  const doors: DoorInstance[] = chosenEdges.map((edge, i) => ({
-    id: `door_${i}`,
-    edgeKey: edge.key,
-    a: edge.a,
-    b: edge.b,
-    color: DOOR_COLORS[i % DOOR_COLORS.length],
-  }));
-
-  const usedCells = new Set<string>(excludedCells);
-  usedCells.add(cellKey(entrance));
   const floorCells: Cell[] = [];
   for (let y = 0; y < graph.rows; y++) {
     for (let x = 0; x < graph.cols; x++) {
       const c = { x, y };
-      if (!usedCells.has(cellKey(c))) floorCells.push(c);
+      if (!claimedCells.has(cellKey(c))) floorCells.push(c);
     }
   }
 
-  const keys: KeyPlacement[] = [];
   for (const door of doors) {
     if (floorCells.length === 0) break;
     const idx = rng.nextInt(floorCells.length);
     const [cell] = floorCells.splice(idx, 1);
-    usedCells.add(cellKey(cell));
+    claimedCells.add(cellKey(cell));
     keys.push({ doorId: door.id, cell, color: door.color });
   }
 
-  return { doors, keys };
+  return { doors, keys, vaults };
 }

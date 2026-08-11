@@ -27,6 +27,10 @@ export type ItemKind = "weapon" | "armor" | "accessory" | "consumable";
 export interface ItemStats {
   damage?: number;
   cooldownMs?: number;
+  /** Attack reach in pixels for weapons - defaults to PLAYER_ATTACK_RANGE when unset. Ranged
+   * weapons (bows, staves, ...) set this well beyond melee range; line-of-sight still applies,
+   * so a wall blocks the hit either way. */
+  range?: number;
   defense?: number;
   speedMult?: number;
   healAmount?: number;

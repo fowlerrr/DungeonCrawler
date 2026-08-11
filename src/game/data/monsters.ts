@@ -9,7 +9,7 @@ export const MONSTERS: MonsterDef[] = [
     baseDamage: 3,
     moveSpeed: 35,
     aiType: "wander",
-    spriteKey: "monster_basic",
+    spriteKey: "monster_slime",
   },
   {
     id: "goblin",
@@ -18,7 +18,7 @@ export const MONSTERS: MonsterDef[] = [
     baseDamage: 6,
     moveSpeed: 75,
     aiType: "chase",
-    spriteKey: "monster_basic",
+    spriteKey: "monster_goblin",
   },
 ];
 

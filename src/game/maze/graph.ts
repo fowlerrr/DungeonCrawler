@@ -4,8 +4,6 @@ export interface MazeEdge {
   a: Cell;
   b: Cell;
   open: boolean;
-  /** Set once a lock is placed on this edge (task: lock/key placement). */
-  lockId?: string;
 }
 
 export interface MazeGraph {
@@ -72,6 +70,28 @@ export function buildOpenAdjacency(graph: MazeGraph, excluded?: ReadonlySet<stri
     add(edge.b, edge.a, edge);
   }
   return map;
+}
+
+/**
+ * BFS over the currently-open edges from `start`, treating any edge in `excluded` as closed -
+ * the set of cells reachable without crossing one of them. Used to find what a bridge edge
+ * actually gates: the cells unreachable from the entrance once that one edge is removed.
+ */
+export function reachableCells(graph: MazeGraph, start: Cell, excluded?: ReadonlySet<string>): Set<string> {
+  const adjacency = buildOpenAdjacency(graph, excluded);
+  const visited = new Set<string>([cellKey(start)]);
+  const queue: Cell[] = [start];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const { other } of adjacency.get(cellKey(current)) ?? []) {
+      const k = cellKey(other);
+      if (!visited.has(k)) {
+        visited.add(k);
+        queue.push(other);
+      }
+    }
+  }
+  return visited;
 }
 
 /**
