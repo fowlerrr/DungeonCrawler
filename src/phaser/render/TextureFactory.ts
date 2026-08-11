@@ -134,6 +134,12 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   door("door_blue", 0x224499, 0xddddff);
   door("door_green", 0x228844, 0xddffdd);
   door("door_yellow", 0x998822, 0xffffdd);
+  door("door_purple", 0x662299, 0xe5ccff);
+  door("door_orange", 0xcc6622, 0xffe0cc);
+  door("door_cyan", 0x22999c, 0xccffff);
+  door("door_pink", 0xcc4488, 0xffccee);
+  door("door_teal", 0x227766, 0xccffee);
+  door("door_brown", 0x6b4a2b, 0xe5c9a8);
   door("door_exit", 0x555555, 0xf5d76e);
 
   /** A ring with a small tooth, closer to a real key silhouette than a plain diamond. */
@@ -151,6 +157,12 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   key_("key_blue", 0x5588ff);
   key_("key_green", 0x55dd77);
   key_("key_yellow", 0xffdd55);
+  key_("key_purple", 0xaa66ff);
+  key_("key_orange", 0xff9944);
+  key_("key_cyan", 0x44eeff);
+  key_("key_pink", 0xff77bb);
+  key_("key_teal", 0x55ddcc);
+  key_("key_brown", 0xa87d55);
   key_("key_exit", 0xf5d76e);
 
   circle("pickup_health", 0x4cd964, 8, 0x1c5c2a);

@@ -2,7 +2,11 @@ import { edgeKey, findBridges, reachableCells, type MazeGraph } from "./graph";
 import type { Rng } from "./rng";
 import { cellKey, type Cell } from "./types";
 
-export const DOOR_COLORS = ["red", "blue", "green", "yellow"] as const;
+// Needs at least as many entries as LevelConfig's lockCount can ever reach (currently capped at
+// 10) - reusing a color for two different doors/keys in the same level meant a held key could
+// visually match a door (same color) without actually being that door's key (different id),
+// which read as "I have the red key but this red door won't open."
+export const DOOR_COLORS = ["red", "blue", "green", "yellow", "purple", "orange", "cyan", "pink", "teal", "brown"] as const;
 export type DoorColor = (typeof DOOR_COLORS)[number];
 
 /** Small pockets of cells with no route in or out except through one locked door - see

@@ -21,6 +21,20 @@ describe("placeLocks + validateSolvable", () => {
     }
   });
 
+  it("never assigns the same color to two different doors in one level", () => {
+    // A held key's color is the player's only cue for which door it opens - if two doors ever
+    // share a color, a matching-colored key that isn't actually for that door reads as a bug.
+    const rng = new Rng(42);
+    const graph = generateBaseMaze(20, 20, rng);
+    braidMaze(graph, 0.3, rng);
+    const entrance = { x: 0, y: 0 };
+    const exit = { x: 19, y: 19 };
+    const { doors } = placeLocks(graph, 10, rng, entrance, exit);
+
+    const colors = doors.map((d) => d.color);
+    expect(new Set(colors).size).toBe(colors.length);
+  });
+
   it("places at most one key per door and never places a key on the entrance", () => {
     const rng = new Rng(77);
     const graph = generateBaseMaze(8, 8, rng);

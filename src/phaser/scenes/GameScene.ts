@@ -30,7 +30,7 @@ import { cellCenterPx, cellToTile, edgeConnectorTile, tileCenterPx } from "../..
 import { cellKey, type TileGrid } from "../../game/maze/types";
 import { FogOfWar } from "../../game/systems/FogOfWar";
 import { Inventory } from "../../game/systems/Inventory";
-import { Keyring } from "../../game/systems/Keyring";
+import { Keyring, type KeyLabel } from "../../game/systems/Keyring";
 import { getLevelConfig } from "../../game/systems/LevelConfig";
 import { boostForVault, rollLoot } from "../../game/systems/LootTable";
 import {
@@ -234,6 +234,7 @@ export class GameScene extends Phaser.Scene {
     ).filter((monster) => hasLineOfSight(this.mazeGrid!, playerSprite.x, playerSprite.y, monster.x, monster.y));
     for (const monster of targets) {
       applyDamage(monster.logic, damage);
+      monster.updateHealthBar();
       if (monster.logic.isDead) {
         if (monster.def.isBoss) {
           this.inventory.gold += BOSS_GOLD_DROP;
@@ -260,15 +261,20 @@ export class GameScene extends Phaser.Scene {
     this.persist();
   }
 
+  /** Read by UIScene each frame to show which keys are currently held. */
+  heldKeyLabels(): KeyLabel[] {
+    return this.keyring.heldLabels();
+  }
+
   private spawnHealthPickup(x: number, y: number): void {
     const pickup = new HealthPickupSprite(this, x, y, HEALTH_PICKUP_HEAL);
     this.healthPickupsGroup.add(pickup);
   }
 
   private spawnExitKey(x: number, y: number): void {
-    const keySprite = new KeyPickupSprite(this, x, y, EXIT_KEY_ID, "key_exit");
+    const keySprite = new KeyPickupSprite(this, x, y, EXIT_KEY_ID, "exit", "key_exit");
     this.physics.add.overlap(this.playerSprite!, keySprite, () => {
-      this.keyring.collect(EXIT_KEY_ID);
+      this.keyring.collect(EXIT_KEY_ID, "exit");
       keySprite.destroy();
     });
   }
@@ -327,7 +333,7 @@ export class GameScene extends Phaser.Scene {
     const keysGroup = this.physics.add.staticGroup();
     for (const key of level.keys) {
       const { x, y } = cellCenterPx(key.cell);
-      const keySprite = new KeyPickupSprite(this, x, y, key.doorId, `key_${key.color}`);
+      const keySprite = new KeyPickupSprite(this, x, y, key.doorId, key.color, `key_${key.color}`);
       keysGroup.add(keySprite);
     }
 
@@ -335,7 +341,7 @@ export class GameScene extends Phaser.Scene {
     // via a tile-step attempt, never a physics overlap - see findBlockingDoorAt).
     this.physics.add.overlap(this.playerSprite, keysGroup, (_player, keyObj) => {
       const key = keyObj as KeyPickupSprite;
-      this.keyring.collect(key.doorId);
+      this.keyring.collect(key.doorId, key.label);
       key.destroy();
     });
 
@@ -421,12 +427,16 @@ export class GameScene extends Phaser.Scene {
     });
 
     // The exit door sits one cell away from where the boss stood (see GeneratedLevel.bossCell)
-    // - purely a trigger (never blocks movement) that ends the level once the player, having
-    // walked the key over from the boss, holds it here. Deliberately not added to
-    // blockingDoors, and not colliding with monsters either.
+    // - purely a trigger for the player (never blocks their movement) that ends the level once
+    // they, having walked the key over from the boss, hold it here. Not added to blockingDoors
+    // for that reason, but IS given a monster collider below - without one, the boss (which
+    // chases the player with no other obstruction here) could wander onto this exact tile and
+    // die there, dropping its key already overlapping the trigger and completing the level the
+    // instant it's picked up instead of requiring an actual walk to the door.
     const exitSpawn = cellCenterPx(level.exit);
     const exitTile = cellToTile(level.exit);
     const exitDoor = new DoorSprite(this, exitSpawn.x, exitSpawn.y, exitTile.tx, exitTile.ty, EXIT_KEY_ID, "door_exit");
+    this.physics.add.collider(monsterGroup, exitDoor);
     this.physics.add.overlap(this.playerSprite, exitDoor, () => {
       if (this.keyring.has(EXIT_KEY_ID)) {
         // Defer to next update() rather than tearing the scene down mid physics-step.

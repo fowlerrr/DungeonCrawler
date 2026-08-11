@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, MAZE_VIEW_WIDTH, SCENE_KEYS, SIDEBAR_WIDTH } from "../../config/constants";
 import type { EquipmentSlot, ItemDef } from "../../game/data/types";
+import type { KeyLabel } from "../../game/systems/Keyring";
 import { InventoryPanel } from "../objects/InventoryPanel";
 import { MinimapRenderer } from "../render/MinimapRenderer";
 import type { GameScene } from "./GameScene";
@@ -10,6 +11,25 @@ const HUD_Y = PANEL_MARGIN;
 const MINIMAP_Y = 76;
 const MINIMAP_RESERVED_HEIGHT = 210;
 const EQUIP_Y = MINIMAP_Y + MINIMAP_RESERVED_HEIGHT;
+const KEYS_LABEL_Y = EQUIP_Y + 52;
+const KEYS_ROW_Y = EQUIP_Y + 68;
+const KEYS_PER_ROW = 4;
+const KEY_COLUMN_WIDTH = 47;
+const KEY_ROW_HEIGHT = 18;
+
+const KEY_COLOR_HEX: Record<KeyLabel, string> = {
+  red: "#ff5555",
+  blue: "#5588ff",
+  green: "#55dd77",
+  yellow: "#ffdd55",
+  purple: "#aa66ff",
+  orange: "#ff9944",
+  cyan: "#44eeff",
+  pink: "#ff77bb",
+  teal: "#55ddcc",
+  brown: "#a87d55",
+  exit: "#f5d76e",
+};
 
 /** Runs in parallel with GameScene (launched, not switched to) for HUD/minimap - reads
  * GameScene's public render-relevant state each frame rather than owning any game logic.
@@ -19,6 +39,8 @@ export class UIScene extends Phaser.Scene {
   private minimap!: MinimapRenderer;
   private hpText!: Phaser.GameObjects.Text;
   private equipText!: Phaser.GameObjects.Text;
+  private keysContainer!: Phaser.GameObjects.Container;
+  private lastKeysSignature = "";
   private inventoryPanel!: InventoryPanel;
 
   constructor() {
@@ -43,13 +65,17 @@ export class UIScene extends Phaser.Scene {
     };
     this.hpText = this.add.text(contentX, HUD_Y, "", textStyle).setScrollFactor(0).setDepth(200);
     this.equipText = this.add.text(contentX, EQUIP_Y, "", textStyle).setScrollFactor(0).setDepth(200);
+
+    this.add.text(contentX, KEYS_LABEL_Y, "Keys:", { ...textStyle, color: "#9a9aa5" }).setScrollFactor(0).setDepth(200);
+    this.keysContainer = this.add.container(contentX, KEYS_ROW_Y).setScrollFactor(0).setDepth(200);
+
     this.add
-      .text(contentX, EQUIP_Y + 68, "I: equipment   ESC: menu", { ...textStyle, color: "#9a9aa5" })
+      .text(contentX, EQUIP_Y + 128, "I: equipment   ESC: menu", { ...textStyle, color: "#9a9aa5" })
       .setScrollFactor(0)
       .setDepth(200);
 
     const menuButton = this.add
-      .text(contentX, EQUIP_Y + 88, "[ Menu ]", { ...textStyle, color: "#4ea8ff" })
+      .text(contentX, EQUIP_Y + 148, "[ Menu ]", { ...textStyle, color: "#4ea8ff" })
       .setScrollFactor(0)
       .setDepth(200)
       .setInteractive({ useHandCursor: true });
@@ -87,6 +113,34 @@ export class UIScene extends Phaser.Scene {
     this.inventoryPanel.show(this.ownedEquippables(gameScene), this.equippedIds(gameScene));
   }
 
+  /** Rebuilds the small grid of colored key labels - only when the held set actually changed
+   * (tracked via a cheap joined-string signature), since recreating Text objects every frame
+   * for something that changes rarely would be wasteful. */
+  private refreshKeys(labels: readonly KeyLabel[]): void {
+    const signature = labels.join(",");
+    if (signature === this.lastKeysSignature) return;
+    this.lastKeysSignature = signature;
+
+    this.keysContainer.removeAll(true);
+    if (labels.length === 0) {
+      this.keysContainer.add(
+        this.add.text(0, 0, "none", { fontFamily: "monospace", fontSize: "12px", color: "#5a5a68" }),
+      );
+      return;
+    }
+
+    labels.forEach((label, i) => {
+      const col = i % KEYS_PER_ROW;
+      const row = Math.floor(i / KEYS_PER_ROW);
+      const text = this.add.text(col * KEY_COLUMN_WIDTH, row * KEY_ROW_HEIGHT, label, {
+        fontFamily: "monospace",
+        fontSize: "12px",
+        color: KEY_COLOR_HEX[label],
+      });
+      this.keysContainer.add(text);
+    });
+  }
+
   update(): void {
     const gameScene = this.scene.get(SCENE_KEYS.GAME) as GameScene;
     const { mazeGrid, fogOfWar, playerSprite, inventory } = gameScene;
@@ -105,5 +159,7 @@ export class UIScene extends Phaser.Scene {
         "\n",
       ),
     );
+
+    this.refreshKeys(gameScene.heldKeyLabels());
   }
 }
