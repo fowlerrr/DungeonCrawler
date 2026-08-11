@@ -11,11 +11,12 @@ describe("buildProfile / applyProfile", () => {
     inventory.addItem(ITEMS[0]);
     inventory.gold = 42;
 
-    const profile = buildProfile(inventory, 5, 7);
+    const profile = buildProfile(inventory, 5, 7, { atk: 2, def: 1, hp: 0 });
     expect(profile.levelNumber).toBe(5);
     expect(profile.highestLevelReached).toBe(7);
     expect(profile.gold).toBe(42);
     expect(profile.equippedIds.weapon).toBe(WEAPONS[0].id);
+    expect(profile.statAllocation).toEqual({ atk: 2, def: 1, hp: 0 });
 
     const restored = new Inventory();
     applyProfile(restored, profile);
@@ -37,6 +38,11 @@ describe("buildProfile / applyProfile", () => {
 
     expect(restored.equipped.weapon).toBeUndefined();
     expect(restored.owned).toEqual([]);
+  });
+
+  it("defaults statAllocation to none spent when omitted", () => {
+    const profile = buildProfile(new Inventory(), 1, 1);
+    expect(profile.statAllocation).toEqual({ atk: 0, def: 0, hp: 0 });
   });
 
   it("dedupes ownedIds from a save predating Inventory.addItem's dedup", () => {

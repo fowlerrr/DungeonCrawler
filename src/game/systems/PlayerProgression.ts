@@ -1,21 +1,51 @@
-export interface PlayerProgression {
-  bonusHp: number;
-  bonusDamage: number;
-  bonusDefense: number;
+export interface StatAllocation {
+  atk: number;
+  def: number;
+  hp: number;
 }
 
+export const EMPTY_ALLOCATION: StatAllocation = { atk: 0, def: 0, hp: 0 };
+
+/** How much each allocated point is worth - HP gets a bigger raw number since a single point of
+ * ATK or DEF already swings a full hit either way, while a single HP is comparatively trivial. */
+export const ATK_PER_POINT = 1;
+export const DEF_PER_POINT = 1;
+export const HP_PER_POINT = 5;
+
 /**
- * Permanent player growth from clearing levels, keyed off highestLevelReached ("Best" in the
- * HUD) rather than the current level - unlike LevelConfig's per-level difficulty scaling, this
- * never resets on death, since it represents lasting mastery rather than the danger of whatever
- * level you're currently on. highestLevelReached starts at 1 (no levels cleared yet), so it's
- * one ahead of the actual clear count.
+ * One stat point is earned per level completed (persisted as highestLevelReached, "Highest
+ * Level" in the HUD - it starts at 1, one ahead of the actual clear count, so points = that
+ * minus 1). Unlike the old auto-applied bonuses, the player chooses where each point goes.
  */
-export function getPlayerProgression(highestLevelReached: number): PlayerProgression {
-  const levelsCompleted = Math.max(0, highestLevelReached - 1);
+export function totalStatPoints(highestLevelReached: number): number {
+  return Math.max(0, highestLevelReached - 1);
+}
+
+export function spentPoints(allocation: StatAllocation): number {
+  return allocation.atk + allocation.def + allocation.hp;
+}
+
+export function unspentPoints(highestLevelReached: number, allocation: StatAllocation): number {
+  return Math.max(0, totalStatPoints(highestLevelReached) - spentPoints(allocation));
+}
+
+export interface StatBonuses {
+  bonusDamage: number;
+  bonusDefense: number;
+  bonusHp: number;
+}
+
+export function bonusesFromAllocation(allocation: StatAllocation): StatBonuses {
   return {
-    bonusHp: Math.floor(levelsCompleted / 5) * 5,
-    bonusDamage: levelsCompleted,
-    bonusDefense: levelsCompleted,
+    bonusDamage: allocation.atk * ATK_PER_POINT,
+    bonusDefense: allocation.def * DEF_PER_POINT,
+    bonusHp: allocation.hp * HP_PER_POINT,
   };
+}
+
+/** Spends one unspent point on `stat`, if any are available - a no-op (returns the same
+ * allocation instance) otherwise, so callers can cheaply check "did anything change". */
+export function allocatePoint(highestLevelReached: number, allocation: StatAllocation, stat: keyof StatAllocation): StatAllocation {
+  if (unspentPoints(highestLevelReached, allocation) <= 0) return allocation;
+  return { ...allocation, [stat]: allocation[stat] + 1 };
 }

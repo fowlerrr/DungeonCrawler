@@ -33,7 +33,13 @@ import { Inventory } from "../../game/systems/Inventory";
 import { Keyring } from "../../game/systems/Keyring";
 import { getLevelConfig } from "../../game/systems/LevelConfig";
 import { boostForVault, rollLoot } from "../../game/systems/LootTable";
-import { getPlayerProgression } from "../../game/systems/PlayerProgression";
+import {
+  allocatePoint,
+  bonusesFromAllocation,
+  EMPTY_ALLOCATION,
+  HP_PER_POINT,
+  type StatAllocation,
+} from "../../game/systems/PlayerProgression";
 import { applyProfile, buildProfile, LocalStorageSaveManager, type SaveManager } from "../../game/systems/SaveManager";
 import { DIRECTION_VECTORS } from "../../game/util/direction";
 import { InputController } from "../input/InputController";
@@ -60,6 +66,9 @@ export class GameScene extends Phaser.Scene {
   levelNumber = 1;
   /** Persists across level resets (death) unlike levelNumber - only ever increases. */
   highestLevelReached = 1;
+  /** How the player has spent their earned stat points (one per level completed) - see
+   * PlayerProgression. Persists across deaths and level resets, same as highestLevelReached. */
+  statAllocation: StatAllocation = EMPTY_ALLOCATION;
 
   private inputController!: InputController;
   private fogRenderer!: FogOfWarRenderer;
@@ -85,6 +94,7 @@ export class GameScene extends Phaser.Scene {
     this.saveManager = new LocalStorageSaveManager();
     this.levelNumber = 1;
     this.highestLevelReached = 1;
+    this.statAllocation = EMPTY_ALLOCATION;
     this.cameras.main.setViewport(0, 0, MAZE_VIEW_WIDTH, this.scale.height);
 
     if (data.fresh) {
@@ -94,8 +104,9 @@ export class GameScene extends Phaser.Scene {
       if (savedProfile) {
         applyProfile(this.inventory, savedProfile);
         this.levelNumber = savedProfile.levelNumber;
-        // Older saves predate this field - fall back to the saved level so it's not lost.
+        // Older saves predate these fields - fall back sensibly so nothing's lost or crashes.
         this.highestLevelReached = savedProfile.highestLevelReached ?? savedProfile.levelNumber;
+        this.statAllocation = savedProfile.statAllocation ?? EMPTY_ALLOCATION;
       }
     }
 
@@ -110,6 +121,37 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard?.on("keydown-R", () => {
       this.buildLevel(Date.now());
     });
+
+    this.input.keyboard?.on("keydown-ESC", () => this.openPauseMenu());
+  }
+
+  /** Opens the pause menu - called from the ESC key above and from UIScene's pause button.
+   * Guarded against re-entry so ESC while the inventory panel (which already pauses GameScene)
+   * or the pause menu itself is open doesn't stack pauses. */
+  openPauseMenu(): void {
+    if (this.scene.isPaused()) return;
+    this.scene.pause();
+    this.scene.launch(SCENE_KEYS.PAUSE);
+  }
+
+  /** Called by PauseScene before quitting to the menu, so anything changed since the last
+   * auto-save (e.g. gold from a kill with no chest opened since) isn't lost. */
+  persistNow(): void {
+    this.persist();
+  }
+
+  /** Called by PauseScene when the player spends a stat point - persists immediately, and for
+   * HP specifically also grows the current run's max/current HP right away rather than waiting
+   * for the next level rebuild to pick it up. */
+  allocateStatPoint(stat: keyof StatAllocation): void {
+    const next = allocatePoint(this.highestLevelReached, this.statAllocation, stat);
+    if (next === this.statAllocation) return;
+    this.statAllocation = next;
+    if (stat === "hp" && this.playerSprite) {
+      this.playerSprite.logic.maxHp += HP_PER_POINT;
+      this.playerSprite.logic.hp += HP_PER_POINT;
+    }
+    this.persist();
   }
 
   update(_time: number, delta: number): void {
@@ -173,7 +215,7 @@ export class GameScene extends Phaser.Scene {
     const weapon = this.inventory.equipped.weapon;
     const cooldownMs = weapon?.stats.cooldownMs ?? PLAYER_ATTACK_COOLDOWN_MS;
     const range = weapon?.stats.range ?? PLAYER_ATTACK_RANGE;
-    const damage = (weapon?.stats.damage ?? PLAYER_ATTACK_DAMAGE) + getPlayerProgression(this.highestLevelReached).bonusDamage;
+    const damage = (weapon?.stats.damage ?? PLAYER_ATTACK_DAMAGE) + bonusesFromAllocation(this.statAllocation).bonusDamage;
 
     const now = this.time.now;
     if (!canAttack(player, now, cooldownMs)) return;
@@ -208,7 +250,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private persist(): void {
-    this.saveManager.save(buildProfile(this.inventory, this.levelNumber, this.highestLevelReached));
+    this.saveManager.save(buildProfile(this.inventory, this.levelNumber, this.highestLevelReached, this.statAllocation));
   }
 
   /** Called by UIScene's inventory panel - equips the given (already-owned) item and persists
@@ -268,7 +310,7 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, maze.widthPx, maze.heightPx);
 
     const entranceTile = cellToTile(level.entrance);
-    const player = new Player(PLAYER_BASE_HP + getPlayerProgression(this.highestLevelReached).bonusHp);
+    const player = new Player(PLAYER_BASE_HP + bonusesFromAllocation(this.statAllocation).bonusHp);
     this.playerSprite = new PlayerSprite(this, entranceTile.tx, entranceTile.ty, player);
 
     this.cameras.main.startFollow(this.playerSprite, true, 0.15, 0.15);
@@ -304,7 +346,7 @@ export class GameScene extends Phaser.Scene {
       pickup.destroy();
     });
 
-    const excludedCells = new Set<string>([cellKey(level.entrance), cellKey(level.exit)]);
+    const excludedCells = new Set<string>([cellKey(level.entrance), cellKey(level.exit), cellKey(level.bossCell)]);
     for (const key of level.keys) excludedCells.add(cellKey(key.cell));
     // Vault cells get their own dedicated chest below and stay monster-free - they're meant to
     // read as a small reward room behind the door, not part of the general spawn pool.
@@ -322,7 +364,7 @@ export class GameScene extends Phaser.Scene {
       monsterGroup.add(monster);
     }
 
-    const bossSpawn = cellCenterPx(level.exit);
+    const bossSpawn = cellCenterPx(level.bossCell);
     const boss = new MonsterSprite(this, bossSpawn.x, bossSpawn.y, BOSS, config.bossHpMult, config.bossDamageMult);
     this.monsterSprites.push(boss);
     monsterGroup.add(boss);
@@ -339,7 +381,7 @@ export class GameScene extends Phaser.Scene {
       player.lastHitAt = this.time.now;
       const armorDefense = this.inventory.equipped.armor?.stats.defense ?? 0;
       const accessoryDefense = this.inventory.equipped.accessory?.stats.defense ?? 0;
-      const totalDefense = armorDefense + accessoryDefense + getPlayerProgression(this.highestLevelReached).bonusDefense;
+      const totalDefense = armorDefense + accessoryDefense + bonusesFromAllocation(this.statAllocation).bonusDefense;
       applyDamage(player, mitigateDamage(monster.logic.damage, totalDefense));
     });
     // The player's body is non-pushable (see PlayerSprite), so this collider stops monsters
@@ -378,12 +420,13 @@ export class GameScene extends Phaser.Scene {
       this.persist();
     });
 
-    // The exit door sits right where the boss stood - purely a trigger (never blocks
-    // movement, since the boss fight already happens on this cell) that ends the level once
-    // the player holds the exit key the boss drops. Deliberately not added to
+    // The exit door sits one cell away from where the boss stood (see GeneratedLevel.bossCell)
+    // - purely a trigger (never blocks movement) that ends the level once the player, having
+    // walked the key over from the boss, holds it here. Deliberately not added to
     // blockingDoors, and not colliding with monsters either.
+    const exitSpawn = cellCenterPx(level.exit);
     const exitTile = cellToTile(level.exit);
-    const exitDoor = new DoorSprite(this, bossSpawn.x, bossSpawn.y, exitTile.tx, exitTile.ty, EXIT_KEY_ID, "door_exit");
+    const exitDoor = new DoorSprite(this, exitSpawn.x, exitSpawn.y, exitTile.tx, exitTile.ty, EXIT_KEY_ID, "door_exit");
     this.physics.add.overlap(this.playerSprite, exitDoor, () => {
       if (this.keyring.has(EXIT_KEY_ID)) {
         // Defer to next update() rather than tearing the scene down mid physics-step.

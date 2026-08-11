@@ -1,6 +1,7 @@
 import { ALL_ITEMS } from "../data/items";
 import type { EquipmentSlot, ItemDef } from "../data/types";
 import type { Inventory } from "./Inventory";
+import { EMPTY_ALLOCATION, type StatAllocation } from "./PlayerProgression";
 
 export interface PlayerProfile {
   equippedIds: Partial<Record<EquipmentSlot, string>>;
@@ -8,6 +9,9 @@ export interface PlayerProfile {
   levelNumber: number;
   highestLevelReached: number;
   gold: number;
+  /** How the player has spent their earned stat points - optional so older saves (which had no
+   * allocation system) still load, defaulting to none spent via EMPTY_ALLOCATION. */
+  statAllocation?: StatAllocation;
 }
 
 export interface SaveManager {
@@ -46,7 +50,12 @@ function resolveItemId(id: string): ItemDef | undefined {
 
 /** Inventory (owned/equipped items by reference) -> plain-data PlayerProfile (items by id),
  * so saves stay stable even if item stats get rebalanced later. */
-export function buildProfile(inventory: Inventory, levelNumber: number, highestLevelReached: number): PlayerProfile {
+export function buildProfile(
+  inventory: Inventory,
+  levelNumber: number,
+  highestLevelReached: number,
+  statAllocation: StatAllocation = EMPTY_ALLOCATION,
+): PlayerProfile {
   const equippedIds: Partial<Record<EquipmentSlot, string>> = {};
   for (const [slot, item] of Object.entries(inventory.equipped)) {
     if (item) equippedIds[slot as EquipmentSlot] = item.id;
@@ -57,6 +66,7 @@ export function buildProfile(inventory: Inventory, levelNumber: number, highestL
     levelNumber,
     highestLevelReached,
     gold: inventory.gold,
+    statAllocation,
   };
 }
 

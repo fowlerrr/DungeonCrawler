@@ -5,7 +5,7 @@ import { pickFarCell } from "./placement";
 import { rasterizeMaze } from "./raster";
 import { Rng } from "./rng";
 import { cellKey, type Cell, type TileGrid } from "./types";
-import type { MazeGraph } from "./graph";
+import { buildOpenAdjacency, type MazeGraph } from "./graph";
 import { validateSolvable } from "./validator";
 
 export interface GeneratedLevel {
@@ -16,6 +16,19 @@ export interface GeneratedLevel {
   vaults: VaultRegion[];
   entrance: Cell;
   exit: Cell;
+  /** Where the boss actually stands - a cell adjacent to the exit, not the exit cell itself, so
+   * beating the boss and grabbing its key-drop doesn't leave the player already standing on the
+   * exit trigger. Falls back to the exit cell only in the impossible case of an isolated exit. */
+  bossCell: Cell;
+}
+
+/** A cell reachable from `cell` via one open edge - used to place the boss a step away from the
+ * exit rather than directly on top of it. Picks deterministically (first match in edge order)
+ * rather than randomly; which neighbor doesn't need extra variety since the exit cell itself is
+ * already randomized per level. */
+function findAdjacentCell(graph: MazeGraph, cell: Cell): Cell | undefined {
+  const neighbors = buildOpenAdjacency(graph).get(cellKey(cell));
+  return neighbors && neighbors.length > 0 ? neighbors[0].other : undefined;
 }
 
 export interface LevelGenerationOptions {
@@ -48,7 +61,8 @@ export function generateLevel(seed: number, options: LevelGenerationOptions): Ge
     const { doors, keys, vaults } = placeLocks(graph, lockCount, rng, entrance, exit, new Set([cellKey(exit)]));
 
     if (validateSolvable(graph, doors, keys, entrance, exit)) {
-      return { graph, grid: rasterizeMaze(graph), doors, keys, vaults, entrance, exit };
+      const bossCell = findAdjacentCell(graph, exit) ?? exit;
+      return { graph, grid: rasterizeMaze(graph), doors, keys, vaults, entrance, exit, bossCell };
     }
   }
 
@@ -56,5 +70,6 @@ export function generateLevel(seed: number, options: LevelGenerationOptions): Ge
   const exit = pickFarCell(cols, rows, entrance, minExitDistance, rng);
   const graph = generateBaseMaze(cols, rows, rng, entrance);
   braidMaze(graph, braidFactor, rng);
-  return { graph, grid: rasterizeMaze(graph), doors: [], keys: [], vaults: [], entrance, exit };
+  const bossCell = findAdjacentCell(graph, exit) ?? exit;
+  return { graph, grid: rasterizeMaze(graph), doors: [], keys: [], vaults: [], entrance, exit, bossCell };
 }

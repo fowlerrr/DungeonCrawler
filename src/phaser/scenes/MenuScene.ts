@@ -2,9 +2,10 @@ import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from "../../config/constants";
 import { LocalStorageSaveManager } from "../../game/systems/SaveManager";
 
-const TITLE_Y = GAME_HEIGHT / 2 - 140;
-const BUTTON_START_Y = GAME_HEIGHT / 2 - 40;
-const BUTTON_SPACING = 50;
+const TITLE_Y = GAME_HEIGHT / 2 - 150;
+const BUTTON_START_Y = GAME_HEIGHT / 2 - 50;
+const BUTTON_SPACING = 46;
+const TUTORIAL_SEEN_KEY = "dungeoncrawler:tutorialSeen";
 
 /** First scene the player actually sees, reached every time the page loads (PreloadScene starts
  * here, not GameScene). New Game and Continue both hand off to GameScene via scene data (`{
@@ -24,7 +25,7 @@ export class MenuScene extends Phaser.Scene {
 
     const panelWidth = 360;
     const panelTop = TITLE_Y - 55;
-    const panelBottom = BUTTON_START_Y + BUTTON_SPACING * 2 + 55;
+    const panelBottom = BUTTON_START_Y + BUTTON_SPACING * 3 + 55;
     const panel = this.add.graphics();
     panel.fillStyle(0x1a1a24, 0.92);
     panel.fillRoundedRect(GAME_WIDTH / 2 - panelWidth / 2, panelTop, panelWidth, panelBottom - panelTop, 14);
@@ -50,7 +51,13 @@ export class MenuScene extends Phaser.Scene {
       () => this.scene.start(SCENE_KEYS.GAME, { fresh: false }),
       hasSave,
     );
-    this.addButton(BUTTON_START_Y + BUTTON_SPACING * 2, "Options", () => this.showComingSoon());
+    this.addButton(BUTTON_START_Y + BUTTON_SPACING * 2, "How to Play", () => this.scene.launch(SCENE_KEYS.TUTORIAL));
+    this.addButton(BUTTON_START_Y + BUTTON_SPACING * 3, "Options", () => this.showComingSoon());
+
+    if (!localStorage.getItem(TUTORIAL_SEEN_KEY)) {
+      localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
+      this.scene.launch(SCENE_KEYS.TUTORIAL);
+    }
   }
 
   private addButton(y: number, label: string, onClick: () => void, enabled = true): void {
@@ -71,7 +78,7 @@ export class MenuScene extends Phaser.Scene {
 
   private showComingSoon(): void {
     const note = this.add
-      .text(GAME_WIDTH / 2, BUTTON_START_Y + BUTTON_SPACING * 2 + 32, "Coming soon", {
+      .text(GAME_WIDTH / 2, BUTTON_START_Y + BUTTON_SPACING * 3 + 30, "Coming soon", {
         fontFamily: "monospace",
         fontSize: "13px",
         color: "#9a9aa5",

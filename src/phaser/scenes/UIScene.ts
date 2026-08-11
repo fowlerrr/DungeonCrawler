@@ -1,14 +1,13 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, MAZE_VIEW_WIDTH, SCENE_KEYS, SIDEBAR_WIDTH } from "../../config/constants";
 import type { EquipmentSlot, ItemDef } from "../../game/data/types";
-import { getPlayerProgression } from "../../game/systems/PlayerProgression";
 import { InventoryPanel } from "../objects/InventoryPanel";
 import { MinimapRenderer } from "../render/MinimapRenderer";
 import type { GameScene } from "./GameScene";
 
 const PANEL_MARGIN = 12;
 const HUD_Y = PANEL_MARGIN;
-const MINIMAP_Y = 96;
+const MINIMAP_Y = 76;
 const MINIMAP_RESERVED_HEIGHT = 210;
 const EQUIP_Y = MINIMAP_Y + MINIMAP_RESERVED_HEIGHT;
 
@@ -45,9 +44,18 @@ export class UIScene extends Phaser.Scene {
     this.hpText = this.add.text(contentX, HUD_Y, "", textStyle).setScrollFactor(0).setDepth(200);
     this.equipText = this.add.text(contentX, EQUIP_Y, "", textStyle).setScrollFactor(0).setDepth(200);
     this.add
-      .text(contentX, EQUIP_Y + 68, "Press I for equipment", { ...textStyle, color: "#9a9aa5" })
+      .text(contentX, EQUIP_Y + 68, "I: equipment   ESC: menu", { ...textStyle, color: "#9a9aa5" })
       .setScrollFactor(0)
       .setDepth(200);
+
+    const menuButton = this.add
+      .text(contentX, EQUIP_Y + 88, "[ Menu ]", { ...textStyle, color: "#4ea8ff" })
+      .setScrollFactor(0)
+      .setDepth(200)
+      .setInteractive({ useHandCursor: true });
+    menuButton.on("pointerover", () => menuButton.setColor("#ffffff"));
+    menuButton.on("pointerout", () => menuButton.setColor("#4ea8ff"));
+    menuButton.on("pointerdown", () => (this.scene.get(SCENE_KEYS.GAME) as GameScene).openPauseMenu());
 
     this.inventoryPanel = new InventoryPanel(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, (item) => this.handleEquip(item));
     this.input.keyboard?.on("keydown-I", () => this.toggleInventoryPanel());
@@ -87,9 +95,8 @@ export class UIScene extends Phaser.Scene {
     this.minimap.redraw(mazeGrid, fogOfWar, playerSprite.tileX, playerSprite.tileY);
 
     const player = playerSprite.logic;
-    const progression = getPlayerProgression(gameScene.highestLevelReached);
     this.hpText.setText(
-      `Level: ${gameScene.levelNumber}\nBest: ${gameScene.highestLevelReached}\nHP: ${player.hp}/${player.maxHp}\nGold: ${inventory.gold}\nBonus: +${progression.bonusDamage} ATK  +${progression.bonusDefense} DEF`,
+      `Level: ${gameScene.levelNumber}\nHighest Level: ${gameScene.highestLevelReached}\nHP: ${player.hp}/${player.maxHp}\nGold: ${inventory.gold}`,
     );
 
     const eq = inventory.equipped;
