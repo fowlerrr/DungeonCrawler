@@ -1,0 +1,55 @@
+import type { ItemDef } from "./types";
+
+/** Starter weapons across every rarity tier - add more by appending entries here. */
+export const WEAPONS: ItemDef[] = [
+  {
+    id: "sword_basic",
+    name: "Sword",
+    kind: "weapon",
+    slot: "weapon",
+    rarity: "normal",
+    stats: { damage: 6, cooldownMs: 400 },
+    spriteKey: "item_weapon",
+    description: "A reliable blade.",
+  },
+  {
+    id: "axe_heavy",
+    name: "Heavy Axe",
+    kind: "weapon",
+    slot: "weapon",
+    rarity: "normal",
+    stats: { damage: 9, cooldownMs: 650 },
+    spriteKey: "item_weapon",
+    description: "Slow but powerful.",
+  },
+  {
+    id: "bow_hunter",
+    name: "Hunter's Bow",
+    kind: "weapon",
+    slot: "weapon",
+    rarity: "rare",
+    stats: { damage: 5, cooldownMs: 300 },
+    spriteKey: "item_weapon",
+    description: "Fast and precise.",
+  },
+  {
+    id: "staff_ember",
+    name: "Ember Staff",
+    kind: "weapon",
+    slot: "weapon",
+    rarity: "epic",
+    stats: { damage: 12, cooldownMs: 500 },
+    spriteKey: "item_weapon",
+    description: "Channels a searing flame.",
+  },
+  {
+    id: "blade_starlight",
+    name: "Starlight Blade",
+    kind: "weapon",
+    slot: "weapon",
+    rarity: "legendary",
+    stats: { damage: 18, cooldownMs: 350 },
+    spriteKey: "item_weapon",
+    description: "Said to have fallen from the sky.",
+  },
+];
