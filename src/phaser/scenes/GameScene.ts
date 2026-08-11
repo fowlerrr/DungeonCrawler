@@ -5,6 +5,7 @@ import {
   MAZE_VIEW_WIDTH,
   MONSTER_CONTACT_DAMAGE_COOLDOWN_MS,
   MONSTER_GOLD_DROP,
+  MONSTER_OCCUPANCY_RADIUS,
   PLAYER_ATTACK_COOLDOWN_MS,
   PLAYER_ATTACK_CONE_HALF_ANGLE_DEG,
   PLAYER_ATTACK_DAMAGE,
@@ -16,6 +17,7 @@ import {
 import { ALL_ITEMS } from "../../game/data/items";
 import { BOSS, MONSTERS } from "../../game/data/monsters";
 import { applyDamage, canAttack, canBeHit, heal, selectAttackTargets } from "../../game/entities/Combat";
+import { isTileOccupiedByMonster } from "../../game/entities/occupancy";
 import { Player } from "../../game/entities/Player";
 import { generateLevel } from "../../game/maze/level";
 import { isTilePassable } from "../../game/maze/passability";
@@ -131,7 +133,10 @@ export class GameScene extends Phaser.Scene {
     const blockedTiles = new Set(
       this.blockingDoors.filter((door) => door.active).map((door) => `${door.tileX},${door.tileY}`),
     );
-    return isTilePassable(this.mazeGrid, tx, ty, blockedTiles);
+    if (!isTilePassable(this.mazeGrid, tx, ty, blockedTiles)) return false;
+
+    const { x, y } = tileCenterPx(tx, ty);
+    return !isTileOccupiedByMonster(x, y, this.monsterSprites, MONSTER_OCCUPANCY_RADIUS);
   }
 
   private onPlayerArriveTile(): void {
@@ -287,8 +292,6 @@ export class GameScene extends Phaser.Scene {
     this.monsterSprites.push(boss);
     monsterGroup.add(boss);
 
-    this.physics.add.collider(monsterGroup, maze.wallGroup);
-    this.physics.add.collider(monsterGroup, doorsGroup);
     // Overlap is registered BEFORE the collider below, so contact damage is detected against
     // the true overlap each step before the collider's separation (which happens the same
     // step) can resolve it away - otherwise a monster that fully overlaps the player in one
@@ -304,6 +307,13 @@ export class GameScene extends Phaser.Scene {
     // The player's body is non-pushable (see PlayerSprite), so this collider stops monsters
     // from walking onto/through the player without ever displacing the player themselves.
     this.physics.add.collider(this.playerSprite, monsterGroup);
+    // Wall/door colliders are registered LAST (after the player-monster collider above), so
+    // they get final say each step: if pushing a monster off the player would shove it into a
+    // wall, this correction runs afterward, in the same step, and pulls it back out before
+    // anything is rendered - otherwise a monster pinned against a wall could get shoved
+    // straight through it, since the wall check would already be done for that frame.
+    this.physics.add.collider(monsterGroup, maze.wallGroup);
+    this.physics.add.collider(monsterGroup, doorsGroup);
 
     const chestRng = new Rng(seed + 1337);
     const chestCells = pickRandomCells(config.mazeCols, config.mazeRows, config.chestCount, chestRng, excludedCells);

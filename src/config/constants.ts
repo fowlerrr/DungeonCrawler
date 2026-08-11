@@ -16,6 +16,10 @@ export const PLAYER_ATTACK_CONE_HALF_ANGLE_DEG = 60;
 
 export const MONSTER_CONTACT_DAMAGE_COOLDOWN_MS = 800;
 export const MONSTER_HIT_FLASH_MS = 120;
+// A tile within this radius of a live monster counts as "occupied" and blocks the player's
+// tile-step - without this, a full-speed tile-step can land the player directly on top of a
+// monster in one jump, forcing a deep overlap that can shove the monster clean through a wall.
+export const MONSTER_OCCUPANCY_RADIUS = TILE_SIZE * 0.6;
 export const HEALTH_PICKUP_HEAL = 6;
 export const MONSTER_GOLD_DROP = 2;
 export const BOSS_GOLD_DROP = 20;
