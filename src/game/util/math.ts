@@ -3,3 +3,11 @@ export function normalize(x: number, y: number): { x: number; y: number } {
   const len = Math.hypot(x, y);
   return { x: x / len, y: y / len };
 }
+
+/** Largest per-tile pixel size (up to `maxTilePx`) that fits `gridWidthTiles` tiles within
+ * `maxWidthPx`, never smaller than 1px. Used to keep the minimap inside its sidebar panel
+ * regardless of how large the maze gets at higher levels. */
+export function computeMinimapTileSize(gridWidthTiles: number, maxWidthPx: number, maxTilePx: number): number {
+  if (gridWidthTiles <= 0) return maxTilePx;
+  return Math.max(1, Math.min(maxTilePx, Math.floor(maxWidthPx / gridWidthTiles)));
+}

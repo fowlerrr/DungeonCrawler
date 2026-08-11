@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { TILE_SIZE } from "../../config/constants";
+import { MONSTER_HIT_FLASH_MS, TILE_SIZE } from "../../config/constants";
 import type { MonsterDef } from "../../game/data/types";
 import { Monster } from "../../game/entities/Monster";
 import { normalize } from "../../game/util/math";
@@ -50,6 +50,14 @@ export class MonsterSprite extends Phaser.Physics.Arcade.Sprite {
     this.setVelocity(direction.x * this.def.moveSpeed, direction.y * this.def.moveSpeed);
     this.logic.x = this.x;
     this.logic.y = this.y;
+  }
+
+  /** Brief white flash so a hit reads clearly even without a real hit animation yet. */
+  flashHit(): void {
+    this.setTintFill(0xffffff);
+    this.scene.time.delayedCall(MONSTER_HIT_FLASH_MS, () => {
+      if (this.active) this.clearTint();
+    });
   }
 
   die(): void {

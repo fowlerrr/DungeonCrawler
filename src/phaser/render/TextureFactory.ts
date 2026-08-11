@@ -48,6 +48,14 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
     g.generateTexture(key, TILE_SIZE, TILE_SIZE);
   };
 
+  /** A wedge pointing right by default - callers rotate it to match facing direction. */
+  const wedge = (key: string, color: number) => {
+    g.clear();
+    g.fillStyle(color, 0.85);
+    g.fillTriangle(2, 2, TILE_SIZE - 2, TILE_SIZE / 2, 2, TILE_SIZE - 2);
+    g.generateTexture(key, TILE_SIZE, TILE_SIZE);
+  };
+
   // Maze tiles
   rect("tile_floor", 0x2b2b3a);
   rect("tile_wall", 0x14141c);
@@ -72,6 +80,7 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   diamond("key_exit", 0xf5d76e);
 
   circle("pickup_health", 0x4cd964, 8, 0x1c5c2a);
+  wedge("attack_swipe", 0xffffff);
 
   // Item icons (used by inventory UI, not placed as world sprites - chests grant items directly)
   rect("item_weapon", 0x9fb4c7, 0x445566);

@@ -2,9 +2,11 @@ import Phaser from "phaser";
 import {
   BOSS_GOLD_DROP,
   HEALTH_PICKUP_HEAL,
+  MAZE_VIEW_WIDTH,
   MONSTER_CONTACT_DAMAGE_COOLDOWN_MS,
   MONSTER_GOLD_DROP,
   PLAYER_ATTACK_COOLDOWN_MS,
+  PLAYER_ATTACK_CONE_HALF_ANGLE_DEG,
   PLAYER_ATTACK_DAMAGE,
   PLAYER_ATTACK_RANGE,
   PLAYER_BASE_HP,
@@ -13,12 +15,13 @@ import {
 } from "../../config/constants";
 import { ALL_ITEMS } from "../../game/data/items";
 import { BOSS, MONSTERS } from "../../game/data/monsters";
-import { applyDamage, canAttack, canBeHit, heal } from "../../game/entities/Combat";
+import { applyDamage, canAttack, canBeHit, heal, selectAttackTargets } from "../../game/entities/Combat";
 import { Player } from "../../game/entities/Player";
 import { generateLevel } from "../../game/maze/level";
+import { isTilePassable } from "../../game/maze/passability";
 import { pickRandomCells } from "../../game/maze/placement";
 import { Rng } from "../../game/maze/rng";
-import { cellCenterPx, edgeConnectorTile, pxToTile, tileCenterPx } from "../../game/maze/raster";
+import { cellCenterPx, cellToTile, edgeConnectorTile, tileCenterPx } from "../../game/maze/raster";
 import { cellKey, type TileGrid } from "../../game/maze/types";
 import { FogOfWar } from "../../game/systems/FogOfWar";
 import { Inventory } from "../../game/systems/Inventory";
@@ -26,7 +29,9 @@ import { Keyring } from "../../game/systems/Keyring";
 import { getLevelConfig } from "../../game/systems/LevelConfig";
 import { rollLoot } from "../../game/systems/LootTable";
 import { applyProfile, buildProfile, LocalStorageSaveManager, type SaveManager } from "../../game/systems/SaveManager";
+import { DIRECTION_VECTORS } from "../../game/util/direction";
 import { InputController } from "../input/InputController";
+import { spawnAttackSwipe } from "../objects/AttackSwipe";
 import { ChestSprite } from "../objects/ChestSprite";
 import { DoorSprite } from "../objects/DoorSprite";
 import { HealthPickupSprite } from "../objects/HealthPickupSprite";
@@ -52,8 +57,10 @@ export class GameScene extends Phaser.Scene {
   private keyring!: Keyring;
   private saveManager!: SaveManager;
   private monsterSprites: MonsterSprite[] = [];
+  /** Maze lock doors only (never the exit door, which never blocks movement) - consulted by
+   * isTilePassable so grid movement can't step through a still-locked door. */
+  private blockingDoors: DoorSprite[] = [];
   private healthPickupsGroup!: Phaser.Physics.Arcade.StaticGroup;
-  private lastFogTile = { tx: -1, ty: -1 };
   private uiLaunched = false;
   private pendingLevelComplete = false;
 
@@ -66,6 +73,7 @@ export class GameScene extends Phaser.Scene {
     this.inventory = new Inventory();
     this.saveManager = new LocalStorageSaveManager();
     this.levelNumber = 1;
+    this.cameras.main.setViewport(0, 0, MAZE_VIEW_WIDTH, this.scale.height);
 
     const savedProfile = this.saveManager.load();
     if (savedProfile) {
@@ -100,14 +108,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const speedMultiplier = this.inventory.equipped.accessory?.stats.speedMult ?? 1;
-    this.playerSprite.applyMovement(this.inputController.getMovementVector(), speedMultiplier);
-
-    const { tx, ty } = pxToTile(this.playerSprite.x, this.playerSprite.y);
-    if (tx !== this.lastFogTile.tx || ty !== this.lastFogTile.ty) {
-      this.lastFogTile = { tx, ty };
-      this.fogOfWar.update(tx, ty, VISION_RADIUS_TILES);
-      this.fogRenderer.redraw(this.fogOfWar);
+    const direction = this.inputController.getDiscreteDirection();
+    if (direction) {
+      const speedMultiplier = this.inventory.equipped.accessory?.stats.speedMult ?? 1;
+      this.playerSprite.tryStep(DIRECTION_VECTORS[direction], (tx, ty) => this.isTilePassable(tx, ty), speedMultiplier, () =>
+        this.onPlayerArriveTile(),
+      );
     }
 
     for (const monster of this.monsterSprites) {
@@ -120,8 +126,22 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private isTilePassable(tx: number, ty: number): boolean {
+    if (!this.mazeGrid) return false;
+    const blockedTiles = new Set(
+      this.blockingDoors.filter((door) => door.active).map((door) => `${door.tileX},${door.tileY}`),
+    );
+    return isTilePassable(this.mazeGrid, tx, ty, blockedTiles);
+  }
+
+  private onPlayerArriveTile(): void {
+    this.fogOfWar!.update(this.playerSprite!.tileX, this.playerSprite!.tileY, VISION_RADIUS_TILES);
+    this.fogRenderer.redraw(this.fogOfWar!);
+  }
+
   private tryPlayerAttack(): void {
-    const player = this.playerSprite!.logic;
+    const playerSprite = this.playerSprite!;
+    const player = playerSprite.logic;
     const weapon = this.inventory.equipped.weapon;
     const cooldownMs = weapon?.stats.cooldownMs ?? PLAYER_ATTACK_COOLDOWN_MS;
     const damage = weapon?.stats.damage ?? PLAYER_ATTACK_DAMAGE;
@@ -130,11 +150,16 @@ export class GameScene extends Phaser.Scene {
     if (!canAttack(player, now, cooldownMs)) return;
     player.lastAttackAt = now;
 
-    for (const monster of this.monsterSprites) {
-      if (monster.logic.isDead) continue;
-      const distance = Phaser.Math.Distance.Between(this.playerSprite!.x, this.playerSprite!.y, monster.x, monster.y);
-      if (distance > PLAYER_ATTACK_RANGE) continue;
+    spawnAttackSwipe(this, playerSprite.x, playerSprite.y, playerSprite.facing);
 
+    const targets = selectAttackTargets(
+      playerSprite,
+      playerSprite.facing,
+      PLAYER_ATTACK_RANGE,
+      PLAYER_ATTACK_CONE_HALF_ANGLE_DEG,
+      this.monsterSprites,
+    );
+    for (const monster of targets) {
       applyDamage(monster.logic, damage);
       if (monster.logic.isDead) {
         if (monster.def.isBoss) {
@@ -145,6 +170,8 @@ export class GameScene extends Phaser.Scene {
           this.spawnHealthPickup(monster.x, monster.y);
         }
         monster.die();
+      } else {
+        monster.flashHit();
       }
     }
   }
@@ -182,6 +209,7 @@ export class GameScene extends Phaser.Scene {
     this.children.removeAll(true);
     this.keyring = new Keyring();
     this.monsterSprites = [];
+    this.blockingDoors = [];
 
     const config = getLevelConfig(this.levelNumber);
     const level = generateLevel(seed, {
@@ -197,19 +225,19 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, maze.widthPx, maze.heightPx);
     this.physics.world.setBounds(0, 0, maze.widthPx, maze.heightPx);
 
-    const spawn = cellCenterPx(level.entrance);
+    const entranceTile = cellToTile(level.entrance);
     const player = new Player(PLAYER_BASE_HP);
-    this.playerSprite = new PlayerSprite(this, spawn.x, spawn.y, player);
+    this.playerSprite = new PlayerSprite(this, entranceTile.tx, entranceTile.ty, player);
 
-    this.physics.add.collider(this.playerSprite, maze.wallGroup);
     this.cameras.main.startFollow(this.playerSprite, true, 0.15, 0.15);
 
     const doorsGroup = this.physics.add.staticGroup();
     for (const door of level.doors) {
       const { tx, ty } = edgeConnectorTile(door.a, door.b);
       const { x, y } = tileCenterPx(tx, ty);
-      const doorSprite = new DoorSprite(this, x, y, door.id, `door_${door.color}`);
+      const doorSprite = new DoorSprite(this, x, y, tx, ty, door.id, `door_${door.color}`);
       doorsGroup.add(doorSprite);
+      this.blockingDoors.push(doorSprite);
     }
 
     const keysGroup = this.physics.add.staticGroup();
@@ -219,7 +247,6 @@ export class GameScene extends Phaser.Scene {
       keysGroup.add(keySprite);
     }
 
-    this.physics.add.collider(this.playerSprite, doorsGroup);
     this.physics.add.overlap(this.playerSprite, doorsGroup, (_player, doorObj) => {
       const door = doorObj as DoorSprite;
       if (this.keyring.has(door.doorId)) {
@@ -262,7 +289,8 @@ export class GameScene extends Phaser.Scene {
 
     this.physics.add.collider(monsterGroup, maze.wallGroup);
     this.physics.add.collider(monsterGroup, doorsGroup);
-    this.physics.add.collider(this.playerSprite, monsterGroup);
+    // No collider between player and monsters - contact should deal damage (below), not
+    // physically shove either one around.
     this.physics.add.overlap(this.playerSprite, monsterGroup, (_player, monsterObj) => {
       const monster = monsterObj as MonsterSprite;
       if (monster.logic.isDead) return;
@@ -293,8 +321,10 @@ export class GameScene extends Phaser.Scene {
 
     // The exit door sits right where the boss stood - purely a trigger (never blocks
     // movement, since the boss fight already happens on this cell) that ends the level once
-    // the player holds the exit key the boss drops.
-    const exitDoor = new DoorSprite(this, bossSpawn.x, bossSpawn.y, EXIT_KEY_ID, "door_exit");
+    // the player holds the exit key the boss drops. Deliberately not added to
+    // blockingDoors, and not colliding with monsters either.
+    const exitTile = cellToTile(level.exit);
+    const exitDoor = new DoorSprite(this, bossSpawn.x, bossSpawn.y, exitTile.tx, exitTile.ty, EXIT_KEY_ID, "door_exit");
     this.physics.add.overlap(this.playerSprite, exitDoor, () => {
       if (this.keyring.has(EXIT_KEY_ID)) {
         // Defer to next update() rather than tearing the scene down mid physics-step.
@@ -304,6 +334,6 @@ export class GameScene extends Phaser.Scene {
 
     this.fogOfWar = new FogOfWar(level.grid[0].length, level.grid.length);
     this.fogRenderer = new FogOfWarRenderer(this);
-    this.lastFogTile = { tx: -1, ty: -1 };
+    this.onPlayerArriveTile();
   }
 }

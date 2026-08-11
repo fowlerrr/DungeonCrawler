@@ -1,32 +1,42 @@
 import Phaser from "phaser";
-import { normalize } from "../../game/util/math";
+import { resolveDirection, type Direction } from "../../game/util/direction";
 
 export class InputController {
-  private cursors: Phaser.Types.Input.Keyboard.CursorKeys;
-  private wasd: Record<"up" | "down" | "left" | "right", Phaser.Input.Keyboard.Key>;
+  private keys: Record<Direction, Phaser.Input.Keyboard.Key[]>;
   private attackKey: Phaser.Input.Keyboard.Key;
+  /** Most-recently-pressed direction last, so tapping a new direction while holding another
+   * immediately changes course - the standard feel for tile-based movement. */
+  private heldOrder: Direction[] = [];
 
   constructor(scene: Phaser.Scene) {
     const keyboard = scene.input.keyboard!;
-    this.cursors = keyboard.createCursorKeys();
-    this.wasd = {
-      up: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
-      down: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S),
-      left: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-      right: keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+    const KC = Phaser.Input.Keyboard.KeyCodes;
+    this.keys = {
+      up: [keyboard.addKey(KC.UP), keyboard.addKey(KC.W)],
+      down: [keyboard.addKey(KC.DOWN), keyboard.addKey(KC.S)],
+      left: [keyboard.addKey(KC.LEFT), keyboard.addKey(KC.A)],
+      right: [keyboard.addKey(KC.RIGHT), keyboard.addKey(KC.D)],
     };
-    this.attackKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.attackKey = keyboard.addKey(KC.SPACE);
+
+    for (const dir of Object.keys(this.keys) as Direction[]) {
+      for (const key of this.keys[dir]) {
+        key.on("down", () => {
+          this.heldOrder = this.heldOrder.filter((d) => d !== dir);
+          this.heldOrder.push(dir);
+        });
+        key.on("up", () => {
+          if (this.keys[dir].every((k) => !k.isDown)) {
+            this.heldOrder = this.heldOrder.filter((d) => d !== dir);
+          }
+        });
+      }
+    }
   }
 
-  /** Unit-length (or zero) direction vector combining arrow keys and WASD. */
-  getMovementVector(): { x: number; y: number } {
-    let x = 0;
-    let y = 0;
-    if (this.cursors.left.isDown || this.wasd.left.isDown) x -= 1;
-    if (this.cursors.right.isDown || this.wasd.right.isDown) x += 1;
-    if (this.cursors.up.isDown || this.wasd.up.isDown) y -= 1;
-    if (this.cursors.down.isDown || this.wasd.down.isDown) y += 1;
-    return normalize(x, y);
+  /** The most recently pressed direction that's still held, or null if none is. */
+  getDiscreteDirection(): Direction | null {
+    return resolveDirection(this.heldOrder, (dir) => this.keys[dir].some((k) => k.isDown));
   }
 
   isAttackDown(): boolean {

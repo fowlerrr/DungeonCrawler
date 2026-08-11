@@ -1,17 +1,21 @@
 export const TILE_SIZE = 32;
 
-export const GAME_WIDTH = 800;
+export const MAZE_VIEW_WIDTH = 800;
+export const SIDEBAR_WIDTH = 220;
+export const GAME_WIDTH = MAZE_VIEW_WIDTH + SIDEBAR_WIDTH;
 export const GAME_HEIGHT = 600;
 
 export const VISION_RADIUS_TILES = 5;
 
-export const PLAYER_MOVE_SPEED = 160; // pixels/sec
+export const PLAYER_MOVE_DURATION_MS = 150; // time to animate one tile-step
 export const PLAYER_BASE_HP = 20;
 export const PLAYER_ATTACK_COOLDOWN_MS = 400;
 export const PLAYER_ATTACK_DAMAGE = 6;
 export const PLAYER_ATTACK_RANGE = 40; // pixels
+export const PLAYER_ATTACK_CONE_HALF_ANGLE_DEG = 60;
 
 export const MONSTER_CONTACT_DAMAGE_COOLDOWN_MS = 800;
+export const MONSTER_HIT_FLASH_MS = 120;
 export const HEALTH_PICKUP_HEAL = 6;
 export const MONSTER_GOLD_DROP = 2;
 export const BOSS_GOLD_DROP = 20;
