@@ -34,6 +34,15 @@ export class PlayerSprite extends Phaser.Physics.Arcade.Sprite {
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setCircle(TILE_SIZE * 0.35, TILE_SIZE * 0.15, TILE_SIZE * 0.15);
+    // Movement is entirely tween-driven (see tryStep), never physics velocity - both flags
+    // are needed to stop a collider from ever displacing the player's body during
+    // separation, so a collision with a monster pushes the monster back and never the
+    // player. Phaser's circle-vs-circle separation (World.separateCircle) only skips moving
+    // a body when `!body.immovable || body.pushable` is false - since pushable defaults to
+    // true, immovable alone doesn't stop it from being displaced; pushable=false is required
+    // too.
+    body.immovable = true;
+    body.pushable = false;
   }
 
   get isMoving(): boolean {

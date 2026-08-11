@@ -289,8 +289,10 @@ export class GameScene extends Phaser.Scene {
 
     this.physics.add.collider(monsterGroup, maze.wallGroup);
     this.physics.add.collider(monsterGroup, doorsGroup);
-    // No collider between player and monsters - contact should deal damage (below), not
-    // physically shove either one around.
+    // Overlap is registered BEFORE the collider below, so contact damage is detected against
+    // the true overlap each step before the collider's separation (which happens the same
+    // step) can resolve it away - otherwise a monster that fully overlaps the player in one
+    // step would get pushed off before the damage check ever saw the contact.
     this.physics.add.overlap(this.playerSprite, monsterGroup, (_player, monsterObj) => {
       const monster = monsterObj as MonsterSprite;
       if (monster.logic.isDead) return;
@@ -299,6 +301,9 @@ export class GameScene extends Phaser.Scene {
       player.lastHitAt = this.time.now;
       applyDamage(player, monster.logic.damage);
     });
+    // The player's body is non-pushable (see PlayerSprite), so this collider stops monsters
+    // from walking onto/through the player without ever displacing the player themselves.
+    this.physics.add.collider(this.playerSprite, monsterGroup);
 
     const chestRng = new Rng(seed + 1337);
     const chestCells = pickRandomCells(config.mazeCols, config.mazeRows, config.chestCount, chestRng, excludedCells);
