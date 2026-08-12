@@ -13,6 +13,7 @@ import {
 } from "../config/constants";
 import { ALL_ITEMS } from "../game/data/items";
 import { BOSS, MONSTERS } from "../game/data/monsters";
+import { getRarityConfig } from "../game/data/rarity";
 import type { ItemDef } from "../game/data/types";
 import { applyDamage, canAttack, canBeHit, heal, mitigateDamage, selectAttackTargets, selectNearestTarget } from "../game/entities/Combat";
 import { findBlockingDoorAt, type BlockingDoor } from "../game/entities/doors";
@@ -50,15 +51,21 @@ import { MonsterController3D } from "./entities/MonsterController3D";
 import { PlayerController3D } from "./entities/PlayerController3D";
 import { InputController3D } from "./input/InputController3D";
 import { MazeMesh } from "./MazeMesh";
-import { Hud3D, SIDEBAR_WIDTH } from "./ui/Hud3D";
+import { Hud3D, KEY_COLOR_HEX, SIDEBAR_WIDTH } from "./ui/Hud3D";
 import { InventoryPanel3D } from "./ui/InventoryPanel3D";
 import { PauseMenu3D, showGameOver3D, showOptions3D, showTutorial3D } from "./ui/Overlays3D";
+import { ToastLayer3D } from "./ui/Toast3D";
 import { buildChestMesh, buildDoorMesh, buildExitDoorMesh, buildHealthPickupMesh, buildKeyMesh } from "./WorldObjectFactory";
 
 const EXIT_KEY_ID = "exit";
 const PLAYER_OCCUPANCY_RADIUS = TILE_SIZE * 0.35;
 const DOOR_OBSTACLE_RADIUS = TILE_SIZE * 0.5;
 const PICKUP_RADIUS = TILE_SIZE * 0.55;
+const PALETTE_HEALTH_HEX = `#${PALETTE.health.toString(16).padStart(6, "0")}`;
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 interface Door3D extends BlockingDoor {
   color: string;
@@ -109,6 +116,7 @@ export class Game3D {
   private readonly levelGroup = new THREE.Group();
   private readonly input = new InputController3D();
   private readonly hud: Hud3D;
+  private readonly toasts: ToastLayer3D;
   private readonly inventoryPanel: InventoryPanel3D;
   private readonly pauseMenu: PauseMenu3D;
   private attackVisuals!: AttackVisuals3D;
@@ -168,6 +176,7 @@ export class Game3D {
     this.hud = new Hud3D(container);
     this.hud.onOpenInventory = () => this.toggleInventoryPanel();
     this.hud.onOpenMenu = () => this.openPauseMenu();
+    this.toasts = new ToastLayer3D(container);
     this.inventoryPanel = new InventoryPanel3D(container, (item) => this.handleEquip(item));
     this.pauseMenu = new PauseMenu3D(container, {
       getData: () => ({
@@ -481,6 +490,8 @@ export class Game3D {
       key.collected = true;
       key.mesh.removeFromParent();
       this.keyring.collect(key.doorId, key.color);
+      const label = key.color === "exit" ? "Exit Key" : `${capitalize(key.color)} Key`;
+      this.toasts.show(label, KEY_COLOR_HEX[key.color]);
     }
 
     for (const chest of this.chestPickups) {
@@ -491,8 +502,10 @@ export class Game3D {
       const item = rollLoot(this.chestRngRef, ALL_ITEMS, weightBonus);
       if (item.kind === "consumable") {
         heal(this.player.logic, item.stats.healAmount ?? 0);
+        this.toasts.show(item.name, PALETTE_HEALTH_HEX);
       } else {
         this.inventory.addItem(item, isAutoEquipEnabled());
+        this.toasts.show(item.name, getRarityConfig(item.rarity).color);
       }
       this.persist();
     }
@@ -502,6 +515,7 @@ export class Game3D {
       pickup.collected = true;
       pickup.mesh.removeFromParent();
       heal(this.player.logic, HEALTH_PICKUP_HEAL);
+      this.toasts.show(`+${HEALTH_PICKUP_HEAL} HP`, PALETTE_HEALTH_HEX);
     }
     this.healthPickups = this.healthPickups.filter((p) => !p.collected);
 
@@ -697,6 +711,7 @@ export class Game3D {
     window.removeEventListener("resize", this.handleResize);
     this.input.dispose();
     this.hud.dispose();
+    this.toasts.dispose();
     this.renderer.domElement.remove();
     this.renderer.dispose();
   }

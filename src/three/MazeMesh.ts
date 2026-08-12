@@ -74,6 +74,19 @@ export class MazeMesh {
     this.floorMesh.instanceMatrix.needsUpdate = true;
     this.wallMesh.instanceMatrix.needsUpdate = true;
 
+    // InstancedMesh's automatic frustum-culling bounds are computed from wherever the instances
+    // happened to be the first time the renderer needed them - every instance starts at the
+    // origin (see HIDDEN_SCALE above) and only moves out to its real tile position later, in
+    // updateFog(), which never recomputes that cached bounds. Left alone, the mesh keeps using
+    // a stale near-the-origin bounding volume forever, so the renderer culls (skips drawing)
+    // entire walls/floor the moment the camera is somewhere that stale volume doesn't cover -
+    // exactly the "can see through the walls" hole. There's no cheap way to keep the bounds
+    // accurate as tiles reveal over time, and the instance count here is small enough (a few
+    // thousand simple boxes, one draw call each) that per-mesh culling buys nothing worth having
+    // this bug for - just always draw both meshes in full.
+    this.floorMesh.frustumCulled = false;
+    this.wallMesh.frustumCulled = false;
+
     this.group.add(this.floorMesh, this.wallMesh);
   }
 

@@ -73,6 +73,7 @@ export class PlayerController3D {
   private turnFromAngle = 0;
   private turnToAngle = 0;
   private turnElapsedMs = 0;
+  private pendingTurns: (1 | -1)[] = [];
 
   constructor(tileX: number, tileY: number, logic: Player) {
     this.logic = logic;
@@ -106,12 +107,27 @@ export class PlayerController3D {
     return { x: Math.sin(this.visualAngle), y: Math.cos(this.visualAngle) };
   }
 
-  /** Rotates facing by one 90° increment - `1` for a right turn, `-1` for a left turn. Doesn't
-   * move the player and isn't blocked by an in-progress step; the two are independent. Commits
-   * the new facing immediately (gameplay - attack direction, which way "forward" means - isn't
-   * delayed by the animation), then kicks off the visual turn from wherever the camera currently
-   * is, so spamming the turn key mid-animation keeps chaining smoothly rather than jumping. */
+  /** Rotates facing by one 90° increment - `1` for a right turn, `-1` for a left turn. Not
+   * blocked by an in-progress step in the sense of being rejected - but a turn requested while
+   * still walking toward a tile is *buffered* rather than applied against your current
+   * in-between-tiles position, and fires the moment you land cleanly on the tile instead. That's
+   * what lets you commit to a turn a little before you'd otherwise be able to see or react to an
+   * upcoming side passage, rather than needing to already be stopped and centered on the
+   * intersection tile before the game will even consider it. */
   turn(delta: 1 | -1): void {
+    if (this.moving) {
+      this.pendingTurns.push(delta);
+      return;
+    }
+    this.applyTurn(delta);
+  }
+
+  /** Commits the new facing immediately (gameplay - attack direction, which way "forward" means
+   * - isn't delayed by the animation), then kicks off the visual turn from wherever the camera
+   * currently is, so several turns applied back-to-back (either spammed live, or flushed
+   * together from the buffer in update()) keep chaining into one smooth sweep rather than
+   * jumping between separate animations. */
+  private applyTurn(delta: 1 | -1): void {
     const currentIndex = CARDINAL_ORDER.findIndex((v) => v.x === this.facing.x && v.y === this.facing.y);
     const nextIndex = (currentIndex + delta + CARDINAL_ORDER.length) % CARDINAL_ORDER.length;
     this.facing = CARDINAL_ORDER[nextIndex];
@@ -169,6 +185,15 @@ export class PlayerController3D {
         const onArrive = this.pendingOnArrive;
         this.pendingOnArrive = undefined;
         onArrive?.();
+
+        // Any turn(s) requested while still walking toward this tile apply now that we've
+        // landed cleanly on it - see turn()'s doc for why they were buffered instead of
+        // applying immediately against an in-between-tiles position.
+        if (this.pendingTurns.length > 0) {
+          const queued = this.pendingTurns;
+          this.pendingTurns = [];
+          for (const delta of queued) this.applyTurn(delta);
+        }
       }
     }
 

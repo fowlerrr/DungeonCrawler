@@ -8,7 +8,7 @@ import { el, THEME } from "./domHelpers";
 
 const SIDEBAR_WIDTH = 240;
 const MAX_MINIMAP_TILE_PX = 4;
-const KEY_COLOR_HEX: Record<KeyLabel, string> = {
+export const KEY_COLOR_HEX: Record<KeyLabel, string> = {
   red: "#ff5555",
   blue: "#5588ff",
   green: "#55dd77",
