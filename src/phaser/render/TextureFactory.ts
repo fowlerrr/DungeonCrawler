@@ -56,6 +56,16 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
     g.generateTexture(key, S, S);
   };
 
+  /** A small bolt (shaft + arrowhead) pointing right - callers rotate it to match travel
+   * direction, for ranged weapons' projectile visual. */
+  const bolt = (key: string, color: number) => {
+    g.clear();
+    g.fillStyle(color, 1);
+    g.fillRect(5, C - 1.5, S - 15, 3);
+    g.fillTriangle(S - 4, C, S - 12, C - 4, S - 12, C + 4);
+    g.generateTexture(key, S, S);
+  };
+
   // Maze tiles - shaded for a little depth instead of a completely flat fill. Floor has one
   // key per MazeRenderer's autotile variant (see classifyFloorTile) - the placeholder doesn't
   // need to actually look different per variant, it just needs every key real art might not
@@ -172,6 +182,7 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
 
   circle("pickup_health", 0x4cd964, 8, 0x1c5c2a);
   wedge("attack_swipe", 0xffffff);
+  bolt("projectile_bolt", 0xffe08a);
 
   // Item icons (used by inventory UI, not placed as world sprites - chests grant items directly)
   g.clear();

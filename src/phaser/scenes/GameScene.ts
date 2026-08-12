@@ -59,6 +59,7 @@ import { KeyPickupSprite } from "../objects/KeyPickupSprite";
 import { spawnLootPopup } from "../objects/LootPopup";
 import { MonsterSprite } from "../objects/MonsterSprite";
 import { PlayerSprite } from "../objects/PlayerSprite";
+import { spawnProjectile } from "../objects/Projectile";
 import { FogOfWarRenderer } from "../render/FogOfWarRenderer";
 import { renderMaze } from "../render/MazeRenderer";
 
@@ -235,8 +236,6 @@ export class GameScene extends Phaser.Scene {
     if (!canAttack(player, now, cooldownMs)) return;
     player.lastAttackAt = now;
 
-    spawnAttackSwipe(this, playerSprite.x, playerSprite.y, playerSprite.facing);
-
     // Range alone isn't enough for a ranged weapon - a wall between attacker and target blocks
     // the hit exactly like it blocks movement, so a bow can't shoot through the maze.
     const candidates = selectAttackTargets(
@@ -252,6 +251,18 @@ export class GameScene extends Phaser.Scene {
     // monster to also damage whatever's standing behind it.
     const nearest = selectNearestTarget(playerSprite, candidates);
     const targets = weapon?.stats.ranged ? (nearest ? [nearest] : []) : candidates;
+
+    if (weapon?.stats.ranged) {
+      // Fires all the way to whatever it hit, or out to the weapon's full range along the
+      // facing direction if nothing was there - a bow shouldn't visibly stop short of a miss.
+      const dest = nearest
+        ? { x: nearest.x, y: nearest.y }
+        : { x: playerSprite.x + playerSprite.facing.x * range, y: playerSprite.y + playerSprite.facing.y * range };
+      spawnProjectile(this, playerSprite.x, playerSprite.y, dest);
+    } else {
+      spawnAttackSwipe(this, playerSprite.x, playerSprite.y, playerSprite.facing);
+    }
+
     for (const monster of targets) {
       applyDamage(monster.logic, damage);
       monster.updateHealthBar();
