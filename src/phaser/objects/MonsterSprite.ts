@@ -36,13 +36,31 @@ export class MonsterSprite extends Phaser.Physics.Arcade.Sprite {
     this.logic.y = y;
 
     scene.add.existing(this);
-    scene.physics.add.existing(this);
-    const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setCircle(TILE_SIZE * 0.35, TILE_SIZE * 0.15, TILE_SIZE * 0.15);
 
     const targetHeight = def.isBoss ? BOSS_HEIGHT : MONSTER_HEIGHT;
     const scale = targetHeight / this.height;
     this.setDisplaySize(this.width * scale, targetHeight);
+
+    scene.physics.add.existing(this);
+    const body = this.body as Phaser.Physics.Arcade.Body;
+    // setCircle's radius/offset are in the sprite's *unscaled* source pixels - Arcade
+    // re-multiplies them by the GameObject's current scale on every physics step, so setting
+    // them before setDisplaySize (as this used to) meant the collision circle silently shrank
+    // by the same factor as the sprite's scale (as low as ~0.24x for some of the real-art
+    // monster sprites, e.g. an intended 11.2px radius collapsing to ~2.7px) - small enough that
+    // monsters could slip through wall collisions they should have been blocked by. Dividing by
+    // `scale` here cancels that back out, keeping the actual in-world hitbox size constant
+    // (TILE_SIZE * 0.35) regardless of how large or small the underlying art asset is.
+    //
+    // The offset is centered within the sprite's own (unscaled) width/height rather than a
+    // fixed value, for the same reason: a fixed offset only happened to land the circle on the
+    // sprite's registration point (this.x/this.y, what every distance/range/occupancy check
+    // elsewhere assumes "the monster's position" means) for the original square 32x32
+    // placeholder. Real art sprites aren't square or 32px, so a fixed offset left the collision
+    // circle up to ~15px away from where the sprite is actually drawn - physics was genuinely
+    // blocking movement at the right spot, but the art visibly overlapped the wall anyway.
+    const sourceRadius = (TILE_SIZE * 0.35) / scale;
+    body.setCircle(sourceRadius, this.width / 2 - sourceRadius, this.height / 2 - sourceRadius);
 
     this.healthBarY = -(this.displayHeight / 2) - HEALTH_BAR_GAP_ABOVE_SPRITE;
 
