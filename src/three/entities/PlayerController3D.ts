@@ -3,7 +3,7 @@ import { PLAYER_MOVE_DURATION_MS } from "../../config/constants";
 import { Player } from "../../game/entities/Player";
 import { tileCenterPx } from "../../game/maze/raster";
 import { pxToWorld } from "../coords";
-import { PALETTE, PLAYER_MESH_HEIGHT, PLAYER_MESH_RADIUS } from "../constants3d";
+import { PALETTE, PLAYER_MESH_HEIGHT, PLAYER_MESH_RADIUS, TURN_DURATION_MS } from "../constants3d";
 
 export type Vec2 = { x: number; y: number };
 
@@ -17,6 +17,21 @@ const CARDINAL_ORDER: readonly Vec2[] = [
   { x: -1, y: 0 },
 ];
 
+function angleFromFacing(facing: Vec2): number {
+  return Math.atan2(facing.x, facing.y);
+}
+
+/** Shortest signed distance from `from` to `to`, both radians - e.g. going from 179° to -179°
+ * is a 2° step, not a 358° one. Used so the turn animation always spins the short way around
+ * and so repeated turns keep chaining smoothly instead of unwrapping through a full circle. */
+function shortestAngleDelta(from: number, to: number): number {
+  return Math.atan2(Math.sin(to - from), Math.cos(to - from));
+}
+
+function easeOutQuad(t: number): number {
+  return 1 - (1 - t) * (1 - t);
+}
+
 /**
  * Tank-style dungeon-crawler controls: turning (rotating `facing` by 90°) is completely separate
  * from stepping (always exactly one tile, in whatever direction is requested - forward along
@@ -24,6 +39,11 @@ const CARDINAL_ORDER: readonly Vec2[] = [
  * PLAYER_MOVE_DURATION_MS the same way PlayerSprite/the old free-direction version were; only
  * "which way is forward" changed, not how a step itself works. The move tween is hand-rolled (a
  * simple lerp advanced each frame in update()) since there's no Phaser tween manager here.
+ *
+ * `facing` itself changes instantly on turn() - combat/movement care which way you're *actually*
+ * facing right now, not where the camera has visually settled - but what the camera and mesh
+ * actually render (`visualAngle`) eases toward it over TURN_DURATION_MS, so a turn reads as an
+ * actual rotation instead of a disorienting snap.
  */
 export class PlayerController3D {
   readonly logic: Player;
@@ -48,6 +68,12 @@ export class PlayerController3D {
   private moveDurationMs = PLAYER_MOVE_DURATION_MS;
   private pendingOnArrive: (() => void) | undefined;
 
+  private visualAngle = angleFromFacing(this.facing);
+  private turning = false;
+  private turnFromAngle = 0;
+  private turnToAngle = 0;
+  private turnElapsedMs = 0;
+
   constructor(tileX: number, tileY: number, logic: Player) {
     this.logic = logic;
     this.tileX = tileX;
@@ -69,12 +95,32 @@ export class PlayerController3D {
     return this.moving;
   }
 
+  get isTurning(): boolean {
+    return this.turning;
+  }
+
+  /** The direction actually being rendered right now - mid-turn this lags behind `facing` by
+   * design (see the class doc). Camera look direction should always use this, not `facing`
+   * directly, so the view rotates smoothly instead of snapping the instant a turn is requested. */
+  get visualFacing(): Vec2 {
+    return { x: Math.sin(this.visualAngle), y: Math.cos(this.visualAngle) };
+  }
+
   /** Rotates facing by one 90° increment - `1` for a right turn, `-1` for a left turn. Doesn't
-   * move the player and isn't blocked by an in-progress step; the two are independent. */
+   * move the player and isn't blocked by an in-progress step; the two are independent. Commits
+   * the new facing immediately (gameplay - attack direction, which way "forward" means - isn't
+   * delayed by the animation), then kicks off the visual turn from wherever the camera currently
+   * is, so spamming the turn key mid-animation keeps chaining smoothly rather than jumping. */
   turn(delta: 1 | -1): void {
     const currentIndex = CARDINAL_ORDER.findIndex((v) => v.x === this.facing.x && v.y === this.facing.y);
     const nextIndex = (currentIndex + delta + CARDINAL_ORDER.length) % CARDINAL_ORDER.length;
     this.facing = CARDINAL_ORDER[nextIndex];
+
+    const targetAngle = angleFromFacing(this.facing);
+    this.turnFromAngle = this.visualAngle;
+    this.turnToAngle = this.visualAngle + shortestAngleDelta(this.visualAngle, targetAngle);
+    this.turnElapsedMs = 0;
+    this.turning = true;
   }
 
   tryStepForward(isPassable: (tx: number, ty: number) => boolean, speedMultiplier: number, onArrive?: () => void): void {
@@ -126,13 +172,23 @@ export class PlayerController3D {
       }
     }
 
+    if (this.turning) {
+      this.turnElapsedMs += deltaMs;
+      const t = Math.min(1, this.turnElapsedMs / TURN_DURATION_MS);
+      this.visualAngle = this.turnFromAngle + (this.turnToAngle - this.turnFromAngle) * easeOutQuad(t);
+      if (t >= 1) {
+        this.turning = false;
+        this.visualAngle = this.turnToAngle;
+      }
+    }
+
     this.syncMeshToLogic();
   }
 
   private syncMeshToLogic(): void {
     const { x, z } = pxToWorld(this.logic.x, this.logic.y);
     this.mesh.position.set(x, 0, z);
-    this.mesh.rotation.y = Math.atan2(this.facing.x, this.facing.y);
+    this.mesh.rotation.y = this.visualAngle;
   }
 }
 

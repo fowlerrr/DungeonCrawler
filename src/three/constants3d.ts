@@ -21,6 +21,11 @@ export const BOSS_MESH_HEIGHT = 1.3;
  * wherever `facing` points, rather than trailing behind/above like a third-person chase cam. */
 export const EYE_HEIGHT = 1.0;
 
+/** How long a 90° turn takes to visually settle (see PlayerController3D's turn animation) -
+ * matches PLAYER_MOVE_DURATION_MS so turning and walking read as the same brisk pace, rather
+ * than a turn feeling sluggish next to a step or snapping instantly and losing your bearings. */
+export const TURN_DURATION_MS = 150;
+
 /** How many tiles the fog-of-war reveals from the player's current tile - deliberately much
  * larger than the 2D game's VISION_RADIUS_TILES (5). A 2D top-down radius reads fine as "how far
  * you can see", but the same radius in a first-person hallway view means the corridor ahead

@@ -417,10 +417,15 @@ export class Game3D {
     if (this.gameOverShown) return;
 
     const speedMultiplier = this.inventory.equipped.accessory?.stats.speedMult ?? 1;
-    if (this.input.isForwardDown()) {
-      this.player.tryStepForward((tx, ty) => this.isTilePassable(tx, ty), speedMultiplier, () => this.onPlayerArriveTile());
-    } else if (this.input.isBackwardDown()) {
-      this.player.tryStepBackward((tx, ty) => this.isTilePassable(tx, ty), speedMultiplier, () => this.onPlayerArriveTile());
+    // Holding forward/backward through a turn would step in the already-committed new facing
+    // while the camera is still visually mid-rotation - waiting for the turn to settle first
+    // keeps "turn, then walk" feeling like two distinct beats instead of a jarring overlap.
+    if (!this.player.isTurning) {
+      if (this.input.isForwardDown()) {
+        this.player.tryStepForward((tx, ty) => this.isTilePassable(tx, ty), speedMultiplier, () => this.onPlayerArriveTile());
+      } else if (this.input.isBackwardDown()) {
+        this.player.tryStepBackward((tx, ty) => this.isTilePassable(tx, ty), speedMultiplier, () => this.onPlayerArriveTile());
+      }
     }
     this.player.update(deltaMs);
 
@@ -645,15 +650,17 @@ export class Game3D {
   }
 
   /** True first-person: the camera sits exactly at the player's own position and eye height,
-   * looking wherever `facing` points - walking is a smooth glide (it just follows the same
-   * lerped tile-step position PlayerController3D's mesh does), turning is an instant 90° snap to
-   * match the equally-instant facing change, the classic grid-crawler feel rather than a smoothed
-   * rotation. */
+   * looking wherever the player is currently facing - walking is a smooth glide (it just follows
+   * the same lerped tile-step position PlayerController3D's mesh does), and turning eases over
+   * TURN_DURATION_MS via `visualFacing` rather than snapping, so a turn reads as an actual
+   * rotation instead of a disorienting jump-cut. Gameplay (attack direction, "forward") still
+   * uses the instantly-committed `facing`, not this - only the camera itself lags. */
   private updateCamera(): void {
     if (!this.player) return;
     const world = pxToWorld(this.player.x, this.player.y);
+    const look = this.player.visualFacing;
     this.camera.position.set(world.x, EYE_HEIGHT, world.z);
-    this.camera.lookAt(world.x + this.player.facing.x, EYE_HEIGHT, world.z + this.player.facing.y);
+    this.camera.lookAt(world.x + look.x, EYE_HEIGHT, world.z + look.y);
 
     for (const monster of this.monsters) monster.faceCamera(this.camera.position);
   }
