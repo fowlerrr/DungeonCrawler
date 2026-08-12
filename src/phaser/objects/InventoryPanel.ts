@@ -83,14 +83,14 @@ export class InventoryPanel {
     return index >= 0 ? SLOT_ORDER[index] : undefined;
   }
 
-  /** Rarity first (normal -> legendary, matching RARITY_TIERS order), then alphabetically by
+  /** Rarity first (legendary -> normal, i.e. best items at the top), then alphabetically by
    * name within a tier - so the list stays in a stable, predictable order as items are found
    * rather than just pickup order. */
   private itemsBySlot(slot: EquipmentSlot): ItemDef[] {
     return this.lastItems
       .filter((item) => item.slot === slot)
       .sort((a, b) => {
-        const rarityDiff = (RARITY_ORDER.get(a.rarity) ?? 0) - (RARITY_ORDER.get(b.rarity) ?? 0);
+        const rarityDiff = (RARITY_ORDER.get(b.rarity) ?? 0) - (RARITY_ORDER.get(a.rarity) ?? 0);
         return rarityDiff !== 0 ? rarityDiff : a.name.localeCompare(b.name);
       });
   }
