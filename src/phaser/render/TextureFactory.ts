@@ -56,8 +56,13 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
     g.generateTexture(key, S, S);
   };
 
-  // Maze tiles - shaded for a little depth instead of a completely flat fill.
-  shadedRect("tile_floor", 0x232330, 0x2b2b3a);
+  // Maze tiles - shaded for a little depth instead of a completely flat fill. Floor has one
+  // key per MazeRenderer's autotile variant (see classifyFloorTile) - the placeholder doesn't
+  // need to actually look different per variant, it just needs every key real art might not
+  // end up covering to still resolve to something.
+  for (const key of ["tile_floor_open", "tile_floor_edge1", "tile_floor_corner", "tile_floor_three", "tile_floor_edge_opp", "tile_floor_four"]) {
+    shadedRect(key, 0x232330, 0x2b2b3a);
+  }
   shadedRect("tile_wall", 0x0e0e14, 0x1c1c28, 0x323244);
   rect("tile_exit", 0xf5d76e, 0xffffff);
 

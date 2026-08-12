@@ -7,7 +7,14 @@ import { normalize } from "../../game/util/math";
 const AGGRO_RANGE = 160;
 const HEALTH_BAR_WIDTH = 22;
 const HEALTH_BAR_HEIGHT = 4;
-const HEALTH_BAR_Y_OFFSET = -20;
+const HEALTH_BAR_GAP_ABOVE_SPRITE = 8;
+/** Target on-screen height for regular monsters vs the boss - collision stays a small fixed
+ * circle regardless (see body.setCircle below), so this is purely a readability choice, not
+ * tied to TILE_SIZE the way tile textures are. Applied to every monster texture uniformly, so
+ * it works whether that texture happens to be a 32px placeholder or a few-hundred-px painted
+ * sprite with its own native aspect ratio. */
+const MONSTER_HEIGHT = TILE_SIZE * 1.5;
+const BOSS_HEIGHT = TILE_SIZE * 2.2;
 
 export class MonsterSprite extends Phaser.Physics.Arcade.Sprite {
   readonly logic: Monster;
@@ -17,6 +24,7 @@ export class MonsterSprite extends Phaser.Physics.Arcade.Sprite {
   private wanderTimerMs = 0;
   private healthBarBg: Phaser.GameObjects.Rectangle;
   private healthBarFill: Phaser.GameObjects.Rectangle;
+  private healthBarY: number;
 
   constructor(scene: Phaser.Scene, x: number, y: number, def: MonsterDef, hpMult = 1, damageMult = 1) {
     super(scene, x, y, def.spriteKey);
@@ -30,14 +38,20 @@ export class MonsterSprite extends Phaser.Physics.Arcade.Sprite {
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setCircle(TILE_SIZE * 0.35, TILE_SIZE * 0.15, TILE_SIZE * 0.15);
 
+    const targetHeight = def.isBoss ? BOSS_HEIGHT : MONSTER_HEIGHT;
+    const scale = targetHeight / this.height;
+    this.setDisplaySize(this.width * scale, targetHeight);
+
+    this.healthBarY = -(this.displayHeight / 2) - HEALTH_BAR_GAP_ABOVE_SPRITE;
+
     // Hidden until the monster actually takes a hit (see updateHealthBar) - a visual clue for
     // how close to dead something is, not a permanent status readout.
     this.healthBarBg = scene.add
-      .rectangle(x, y + HEALTH_BAR_Y_OFFSET, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, 0x14141c, 0.85)
+      .rectangle(x, y + this.healthBarY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, 0x14141c, 0.85)
       .setDepth(70)
       .setVisible(false);
     this.healthBarFill = scene.add
-      .rectangle(x - HEALTH_BAR_WIDTH / 2, y + HEALTH_BAR_Y_OFFSET, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, 0x3fae5c, 1)
+      .rectangle(x - HEALTH_BAR_WIDTH / 2, y + this.healthBarY, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, 0x3fae5c, 1)
       .setOrigin(0, 0.5)
       .setDepth(71)
       .setVisible(false);
@@ -68,8 +82,8 @@ export class MonsterSprite extends Phaser.Physics.Arcade.Sprite {
     this.logic.x = this.x;
     this.logic.y = this.y;
 
-    this.healthBarBg.setPosition(this.x, this.y + HEALTH_BAR_Y_OFFSET);
-    this.healthBarFill.setPosition(this.x - HEALTH_BAR_WIDTH / 2, this.y + HEALTH_BAR_Y_OFFSET);
+    this.healthBarBg.setPosition(this.x, this.y + this.healthBarY);
+    this.healthBarFill.setPosition(this.x - HEALTH_BAR_WIDTH / 2, this.y + this.healthBarY);
   }
 
   /** Brief white flash so a hit reads clearly even without a real hit animation yet. */

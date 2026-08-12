@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { TILE_SIZE } from "../../config/constants";
+import { classifyFloorTile, type FloorTileVariant } from "../../game/maze/autotile";
 import { TileType, type TileGrid } from "../../game/maze/types";
 
 export interface RenderedMaze {
@@ -9,8 +10,20 @@ export interface RenderedMaze {
   heightPx: number;
 }
 
+const FLOOR_TEXTURE_KEYS: Record<FloorTileVariant, string> = {
+  open: "tile_floor_open",
+  edge1: "tile_floor_edge1",
+  edgeOpposite: "tile_floor_edge_opp",
+  corner: "tile_floor_corner",
+  three: "tile_floor_three",
+  four: "tile_floor_four",
+};
+
 /** Draws a TileGrid as placed images (not a Phaser Tilemap - simpler to reason about for a
- * grid this size, and gives us free Arcade Physics collision on the wall group). */
+ * grid this size, and gives us free Arcade Physics collision on the wall group). Floor cells
+ * are autotiled per classifyFloorTile - which shape (and rotation) of wall-border decoration
+ * to draw depends on which neighbors are walls, since the source art draws that decoration
+ * onto the floor cell, not the wall cell. */
 export function renderMaze(scene: Phaser.Scene, grid: TileGrid): RenderedMaze {
   const floorLayer = scene.add.group();
   const wallGroup = scene.physics.add.staticGroup();
@@ -23,7 +36,10 @@ export function renderMaze(scene: Phaser.Scene, grid: TileGrid): RenderedMaze {
         const wall = wallGroup.create(px, py, "tile_wall") as Phaser.Physics.Arcade.Sprite;
         wall.refreshBody();
       } else {
-        floorLayer.add(scene.add.image(px, py, "tile_floor"));
+        const { variant, rotationDeg } = classifyFloorTile(grid, x, y);
+        const image = scene.add.image(px, py, FLOOR_TEXTURE_KEYS[variant]);
+        image.setAngle(rotationDeg);
+        floorLayer.add(image);
       }
     }
   }
