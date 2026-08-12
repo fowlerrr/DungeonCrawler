@@ -39,13 +39,15 @@ export function getLevelConfig(levelNumber: number): LevelConfig {
     // feedback was that damage taken was already punishing by level 2.
     monsterDamageMult: 1 + (n - 1) * 0.06,
     chestCount: clamp(3 + Math.floor(n / 2), 3, 12),
-    // epic/legendary growth halved after feedback that legendaries were showing up too often
-    // (paired with the lower base weights in rarity.ts) - the game had gotten a bit too easy.
+    // Paired with rarity.ts's very low level-1 base weights: rare+ should feel extremely rare
+    // early on and climb noticeably with level, rather than a small bonus on top of an already
+    // sizeable base chance. At n=1 this is a no-op (all bonuses are 1) - rarity.ts's base
+    // weights alone set the (very low) starting odds.
     rarityWeightBonus: {
       normal: 1,
-      rare: 1 + (n - 1) * 0.3,
-      epic: 1 + (n - 1) * 0.4,
-      legendary: 1 + (n - 1) * 0.5,
+      rare: 1 + (n - 1) * 1.2,
+      epic: 1 + (n - 1) * 1.0,
+      legendary: 1 + (n - 1) * 0.8,
     },
     // Lowered both the level-1 base and early growth after feedback that the boss was
     // consistently the hardest part of a level even early on - ramps up faster after that to

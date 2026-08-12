@@ -8,11 +8,14 @@ export const GAME_HEIGHT = 600;
 export const VISION_RADIUS_TILES = 5;
 
 export const PLAYER_MOVE_DURATION_MS = 150; // time to animate one tile-step
-// Raised from 20 after playtest feedback that monster/boss contact damage (see LevelConfig's
-// damage multipliers) was killing the player in 2-3 hits as early as level 2.
-export const PLAYER_BASE_HP = 30;
+// Was raised to 30 after early playtest feedback that damage taken was too punishing; brought
+// back down to 25 (still above the original 20) after the game swung the other way and got too
+// easy - PlayerProgression's stat points are the intended way to grow past this now, not a
+// generous starting baseline. There's no equivalent "starting DEF" to lower alongside it -
+// unarmed players already start at 0 defense (see Combat's mitigateDamage).
+export const PLAYER_BASE_HP = 25;
 export const PLAYER_ATTACK_COOLDOWN_MS = 400;
-export const PLAYER_ATTACK_DAMAGE = 6;
+export const PLAYER_ATTACK_DAMAGE = 5;
 export const PLAYER_ATTACK_RANGE = 40; // pixels
 export const PLAYER_ATTACK_CONE_HALF_ANGLE_DEG = 60;
 

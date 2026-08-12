@@ -1,6 +1,8 @@
 import Phaser from "phaser";
-import { getRarityConfig } from "../../game/data/rarity";
+import { getRarityConfig, RARITY_TIERS } from "../../game/data/rarity";
 import type { EquipmentSlot, ItemDef, ItemStats } from "../../game/data/types";
+
+const RARITY_ORDER = new Map(RARITY_TIERS.map((tier, index) => [tier.tier, index]));
 
 const COLUMN_WIDTH = 260;
 const COLUMN_GAP = 20;
@@ -81,8 +83,16 @@ export class InventoryPanel {
     return index >= 0 ? SLOT_ORDER[index] : undefined;
   }
 
+  /** Rarity first (normal -> legendary, matching RARITY_TIERS order), then alphabetically by
+   * name within a tier - so the list stays in a stable, predictable order as items are found
+   * rather than just pickup order. */
   private itemsBySlot(slot: EquipmentSlot): ItemDef[] {
-    return this.lastItems.filter((item) => item.slot === slot);
+    return this.lastItems
+      .filter((item) => item.slot === slot)
+      .sort((a, b) => {
+        const rarityDiff = (RARITY_ORDER.get(a.rarity) ?? 0) - (RARITY_ORDER.get(b.rarity) ?? 0);
+        return rarityDiff !== 0 ? rarityDiff : a.name.localeCompare(b.name);
+      });
   }
 
   private scroll(slot: EquipmentSlot, direction: number): void {

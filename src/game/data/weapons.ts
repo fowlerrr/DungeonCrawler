@@ -2,10 +2,12 @@ import type { ItemDef } from "./types";
 
 /**
  * Starter weapon catalog across every rarity tier. Melee weapons keep range close to
- * PLAYER_ATTACK_RANGE (~48px, a bit over a tile); ranged weapons (bows, crossbows, staves,
- * wands, tomes) reach much further (130-200px) but are still subject to line-of-sight, so a
- * wall blocks them exactly like it blocks a monster's approach - range alone can't shoot
- * through the maze. Add more by appending entries here, no other code changes needed.
+ * PLAYER_ATTACK_RANGE (~48px, a bit over a tile). Ranged weapons (bows, crossbows, staves,
+ * wands, tomes) reach much further, and their range climbs by rarity tier too - normal ~120-140,
+ * rare ~155-175, epic ~185-210, legendary up to 260 - so finding a better bow is also a
+ * meaningfully longer one, not just harder-hitting. Still subject to line-of-sight regardless
+ * of range, so a wall blocks them exactly like it blocks a monster's approach - range alone
+ * can't shoot through the maze. Add more by appending entries here, no other code changes needed.
  */
 export const WEAPONS: ItemDef[] = [
   // Normal
@@ -65,7 +67,7 @@ export const WEAPONS: ItemDef[] = [
     kind: "weapon",
     slot: "weapon",
     rarity: "normal",
-    stats: { damage: 5, cooldownMs: 350, range: 130 },
+    stats: { damage: 5, cooldownMs: 350, range: 120 },
     spriteKey: "item_weapon",
     description: "Simple, but it reaches.",
   },
@@ -87,7 +89,7 @@ export const WEAPONS: ItemDef[] = [
     kind: "weapon",
     slot: "weapon",
     rarity: "rare",
-    stats: { damage: 7, cooldownMs: 300, range: 160 },
+    stats: { damage: 7, cooldownMs: 300, range: 165 },
     spriteKey: "item_weapon",
     description: "Fast and precise.",
   },
@@ -117,7 +119,7 @@ export const WEAPONS: ItemDef[] = [
     kind: "weapon",
     slot: "weapon",
     rarity: "rare",
-    stats: { damage: 11, cooldownMs: 550, range: 170 },
+    stats: { damage: 11, cooldownMs: 550, range: 175 },
     spriteKey: "item_weapon",
     description: "Slow to reload, hits hard.",
   },
@@ -127,7 +129,7 @@ export const WEAPONS: ItemDef[] = [
     kind: "weapon",
     slot: "weapon",
     rarity: "rare",
-    stats: { damage: 8, cooldownMs: 350, range: 150 },
+    stats: { damage: 8, cooldownMs: 350, range: 155 },
     spriteKey: "item_weapon",
     description: "Crackles with cold light.",
   },
@@ -139,7 +141,7 @@ export const WEAPONS: ItemDef[] = [
     kind: "weapon",
     slot: "weapon",
     rarity: "epic",
-    stats: { damage: 12, cooldownMs: 500, range: 150 },
+    stats: { damage: 12, cooldownMs: 500, range: 185 },
     spriteKey: "item_weapon",
     description: "Channels a searing flame.",
   },
@@ -169,7 +171,7 @@ export const WEAPONS: ItemDef[] = [
     kind: "weapon",
     slot: "weapon",
     rarity: "epic",
-    stats: { damage: 10, cooldownMs: 320, range: 190 },
+    stats: { damage: 10, cooldownMs: 320, range: 210 },
     spriteKey: "item_weapon",
     description: "Sights a target from across the room.",
   },
@@ -179,7 +181,7 @@ export const WEAPONS: ItemDef[] = [
     kind: "weapon",
     slot: "weapon",
     rarity: "epic",
-    stats: { damage: 14, cooldownMs: 480, range: 160 },
+    stats: { damage: 14, cooldownMs: 480, range: 195 },
     spriteKey: "item_weapon",
     description: "Pages that write their own spells.",
   },
@@ -211,7 +213,7 @@ export const WEAPONS: ItemDef[] = [
     kind: "weapon",
     slot: "weapon",
     rarity: "legendary",
-    stats: { damage: 16, cooldownMs: 280, range: 200 },
+    stats: { damage: 16, cooldownMs: 280, range: 260 },
     spriteKey: "item_weapon",
     description: "Every arrow trails an ember.",
   },
