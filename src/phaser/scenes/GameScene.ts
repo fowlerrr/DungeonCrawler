@@ -8,7 +8,6 @@ import {
   MONSTER_OCCUPANCY_RADIUS,
   PLAYER_ATTACK_COOLDOWN_MS,
   PLAYER_ATTACK_CONE_HALF_ANGLE_DEG,
-  PLAYER_ATTACK_DAMAGE,
   PLAYER_ATTACK_RANGE,
   PLAYER_BASE_HP,
   SCENE_KEYS,
@@ -46,9 +45,12 @@ import {
   bonusesFromAllocation,
   EMPTY_ALLOCATION,
   HP_PER_POINT,
+  totalAtk,
+  totalDef,
   type StatAllocation,
 } from "../../game/systems/PlayerProgression";
 import { applyProfile, buildProfile, LocalStorageSaveManager, type SaveManager } from "../../game/systems/SaveManager";
+import { isAutoEquipEnabled } from "../../game/systems/Settings";
 import { DIRECTION_VECTORS } from "../../game/util/direction";
 import { InputController } from "../input/InputController";
 import { spawnAttackSwipe } from "../objects/AttackSwipe";
@@ -92,7 +94,6 @@ export class GameScene extends Phaser.Scene {
    * isTilePassable so grid movement can't step through a still-locked door. */
   private blockingDoors: DoorSprite[] = [];
   private healthPickupsGroup!: Phaser.Physics.Arcade.StaticGroup;
-  private uiLaunched = false;
   private pendingLevelComplete = false;
 
   constructor() {
@@ -125,9 +126,13 @@ export class GameScene extends Phaser.Scene {
 
     this.buildLevel(Date.now());
 
-    if (!this.uiLaunched) {
+    // Checks actual scene-manager state rather than a separately-tracked flag - GameScene is a
+    // persistent singleton reused across playthroughs in one page load (Phaser scenes aren't
+    // reconstructed on scene.start), so a plain boolean here would go stale the moment something
+    // like PauseScene's quit-to-menu explicitly stops UIScene: the flag would still say "already
+    // launched" and the HUD would never come back on the next game.
+    if (!this.scene.isActive(SCENE_KEYS.UI)) {
       this.scene.launch(SCENE_KEYS.UI);
-      this.uiLaunched = true;
     }
 
     // Debug: press R to regenerate with a fresh seed, to sanity-check maze variety.
@@ -230,7 +235,7 @@ export class GameScene extends Phaser.Scene {
     const weapon = this.inventory.equipped.weapon;
     const cooldownMs = weapon?.stats.cooldownMs ?? PLAYER_ATTACK_COOLDOWN_MS;
     const range = weapon?.stats.range ?? PLAYER_ATTACK_RANGE;
-    const damage = (weapon?.stats.damage ?? PLAYER_ATTACK_DAMAGE) + bonusesFromAllocation(this.statAllocation).bonusDamage;
+    const damage = totalAtk(weapon?.stats.damage, this.statAllocation);
 
     const now = this.time.now;
     if (!canAttack(player, now, cooldownMs)) return;
@@ -258,9 +263,9 @@ export class GameScene extends Phaser.Scene {
       const dest = nearest
         ? { x: nearest.x, y: nearest.y }
         : { x: playerSprite.x + playerSprite.facing.x * range, y: playerSprite.y + playerSprite.facing.y * range };
-      spawnProjectile(this, playerSprite.x, playerSprite.y, dest);
+      spawnProjectile(this, playerSprite.x, playerSprite.y, dest, weapon.stats.art);
     } else {
-      spawnAttackSwipe(this, playerSprite.x, playerSprite.y, playerSprite.facing);
+      spawnAttackSwipe(this, playerSprite.x, playerSprite.y, playerSprite.facing, weapon?.stats.art);
     }
 
     for (const monster of targets) {
@@ -420,10 +425,8 @@ export class GameScene extends Phaser.Scene {
       const player = this.playerSprite!.logic;
       if (!canBeHit(player, this.time.now, MONSTER_CONTACT_DAMAGE_COOLDOWN_MS)) return;
       player.lastHitAt = this.time.now;
-      const armorDefense = this.inventory.equipped.armor?.stats.defense ?? 0;
-      const accessoryDefense = this.inventory.equipped.accessory?.stats.defense ?? 0;
-      const totalDefense = armorDefense + accessoryDefense + bonusesFromAllocation(this.statAllocation).bonusDefense;
-      applyDamage(player, mitigateDamage(monster.logic.damage, totalDefense));
+      const defense = totalDef(this.inventory.equipped.armor?.stats.defense, this.inventory.equipped.accessory?.stats.defense, this.statAllocation);
+      applyDamage(player, mitigateDamage(monster.logic.damage, defense));
     });
     // The player's body is non-pushable (see PlayerSprite), so this collider stops monsters
     // from walking onto/through the player without ever displacing the player themselves.
@@ -454,7 +457,7 @@ export class GameScene extends Phaser.Scene {
       if (item.kind === "consumable") {
         heal(this.playerSprite!.logic, item.stats.healAmount ?? 0);
       } else {
-        this.inventory.addItem(item);
+        this.inventory.addItem(item, isAutoEquipEnabled());
       }
       spawnLootPopup(this, chest.x, chest.y, item);
       chest.destroy();

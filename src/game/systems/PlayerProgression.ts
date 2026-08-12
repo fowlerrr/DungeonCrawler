@@ -1,3 +1,5 @@
+import { PLAYER_ATTACK_DAMAGE } from "../../config/constants";
+
 export interface StatAllocation {
   atk: number;
   def: number;
@@ -41,6 +43,18 @@ export function bonusesFromAllocation(allocation: StatAllocation): StatBonuses {
     bonusDefense: allocation.def * DEF_PER_POINT,
     bonusHp: allocation.hp * HP_PER_POINT,
   };
+}
+
+/** Total outgoing damage: equipped weapon (or the unarmed base) plus allocated ATK points -
+ * the same formula GameScene's tryPlayerAttack, its monster-contact handler, PauseScene, and the
+ * HUD all need, kept in one place so they can't silently drift apart. */
+export function totalAtk(weaponDamage: number | undefined, allocation: StatAllocation): number {
+  return (weaponDamage ?? PLAYER_ATTACK_DAMAGE) + bonusesFromAllocation(allocation).bonusDamage;
+}
+
+/** Total damage mitigation: armor + accessory defense plus allocated DEF points. */
+export function totalDef(armorDefense: number | undefined, accessoryDefense: number | undefined, allocation: StatAllocation): number {
+  return (armorDefense ?? 0) + (accessoryDefense ?? 0) + bonusesFromAllocation(allocation).bonusDefense;
 }
 
 /** Spends one unspent point on `stat`, if any are available - a no-op (returns the same

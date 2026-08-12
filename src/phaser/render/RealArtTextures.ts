@@ -18,10 +18,10 @@ const TILES_MEDIUM = "assets/tilesets/Assets/Tiles_Medium";
  * the art never draws detail there either, since nothing in the source pack ever shows a wall
  * without an adjacent floor cell's border tile doing the actual decoration.
  *
- * Monster art keeps its native resolution and aspect ratio rather than being baked to
- * TILE_SIZE - MonsterSprite's collision circle was already independent of texture size, so
- * there's no tiling requirement forcing it down, and letting it render larger shows off far
- * more of the linework than the tile grid's 32px budget ever could.
+ * Monster and player art keep their native resolution and aspect ratio rather than being baked
+ * to TILE_SIZE - both sprites' collision circles are already independent of texture size (see
+ * MonsterSprite/PlayerSprite), so there's no tiling requirement forcing it down, and letting it
+ * render larger shows off far more of the linework than the tile grid's 32px budget ever could.
  */
 export function preloadRealArt(scene: Phaser.Scene): void {
   scene.load.image("raw_floor_open", `${TILES_MEDIUM}/Tile01_Floor.png`);
@@ -35,6 +35,7 @@ export function preloadRealArt(scene: Phaser.Scene): void {
   scene.load.image("raw_monster_slime", "assets/sprites/negative-monster-pack/mushroom_01.png");
   scene.load.image("raw_monster_goblin", "assets/sprites/negative-monster-pack/imp_01.png");
   scene.load.image("raw_monster_boss", "assets/sprites/negative-monster-pack/ogre_01.png");
+  scene.load.image("raw_player", "assets/sprites/negative-monster-pack/pirate_01.png");
 }
 
 export function applyRealArt(scene: Phaser.Scene): void {
@@ -51,6 +52,7 @@ export function applyRealArt(scene: Phaser.Scene): void {
   replaceWithNativeArt(scene, "raw_monster_slime", "monster_slime");
   replaceWithNativeArt(scene, "raw_monster_goblin", "monster_goblin");
   replaceWithNativeArt(scene, "raw_monster_boss", "monster_boss");
+  replaceWithNativeArt(scene, "raw_player", "player");
 }
 
 /** Downscales a loaded image onto a TILE_SIZE x TILE_SIZE canvas at load time, then registers

@@ -24,6 +24,12 @@ export interface RarityConfig {
 export type EquipmentSlot = "weapon" | "armor" | "accessory";
 export type ItemKind = "weapon" | "armor" | "accessory" | "consumable";
 
+/** Which shape a weapon's attack visual uses - melee weapons get a swipe silhouette, ranged
+ * weapons get a projectile silhouette (see AttackSwipe.ts / Projectile.ts and the matching
+ * `attack_swipe_*` / `projectile_*` texture keys in TextureFactory.ts). Purely cosmetic - doesn't
+ * affect combat math. */
+export type WeaponArt = "sword" | "axe" | "dagger" | "mace" | "spear" | "arrow" | "stone" | "frost" | "fireball" | "arcane";
+
 export interface ItemStats {
   damage?: number;
   cooldownMs?: number;
@@ -35,6 +41,9 @@ export interface ItemStats {
    * closest valid target instead of everything in the cone, since an arrow/bolt stops at
    * whatever it hits first rather than piercing through to whatever's behind it. */
   ranged?: boolean;
+  /** Which attack-visual shape this weapon uses - defaults to "sword" (melee) or "arrow" (ranged)
+   * when unset, so non-weapon items and older data never need this field. */
+  art?: WeaponArt;
   defense?: number;
   speedMult?: number;
   healAmount?: number;

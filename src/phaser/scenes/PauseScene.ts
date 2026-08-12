@@ -1,6 +1,13 @@
 import Phaser from "phaser";
-import { GAME_HEIGHT, GAME_WIDTH, PLAYER_ATTACK_DAMAGE, SCENE_KEYS } from "../../config/constants";
-import { bonusesFromAllocation, totalStatPoints, unspentPoints, type StatAllocation } from "../../game/systems/PlayerProgression";
+import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from "../../config/constants";
+import {
+  bonusesFromAllocation,
+  totalAtk,
+  totalDef,
+  totalStatPoints,
+  unspentPoints,
+  type StatAllocation,
+} from "../../game/systems/PlayerProgression";
 import type { GameScene } from "./GameScene";
 
 const PANEL_WIDTH = 380;
@@ -114,12 +121,12 @@ export class PauseScene extends Phaser.Scene {
     const gameScene = this.gameScene();
     const allocation = gameScene.statAllocation;
     const bonuses = bonusesFromAllocation(allocation);
-    const weaponDamage = gameScene.inventory.equipped.weapon?.stats.damage ?? PLAYER_ATTACK_DAMAGE;
-    const armorDefense = gameScene.inventory.equipped.armor?.stats.defense ?? 0;
-    const accessoryDefense = gameScene.inventory.equipped.accessory?.stats.defense ?? 0;
+    const eq = gameScene.inventory.equipped;
 
-    this.atkText.setText(`ATK: ${weaponDamage + bonuses.bonusDamage}  (+${allocation.atk} from points)`);
-    this.defText.setText(`DEF: ${armorDefense + accessoryDefense + bonuses.bonusDefense}  (+${allocation.def} from points)`);
+    this.atkText.setText(`ATK: ${totalAtk(eq.weapon?.stats.damage, allocation)}  (+${allocation.atk} from points)`);
+    this.defText.setText(
+      `DEF: ${totalDef(eq.armor?.stats.defense, eq.accessory?.stats.defense, allocation)}  (+${allocation.def} from points)`,
+    );
     this.hpText.setText(`Max HP: ${gameScene.playerSprite?.logic.maxHp ?? "-"}  (+${bonuses.bonusHp} from points)`);
 
     const remaining = unspentPoints(gameScene.highestLevelReached, allocation);

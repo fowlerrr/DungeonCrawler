@@ -5,6 +5,12 @@ import { tileCenterPx } from "../../game/maze/raster";
 
 export type Vec2 = { x: number; y: number };
 
+/** Target on-screen height for the player sprite - see MonsterSprite's MONSTER_HEIGHT for why
+ * this is independent of the underlying texture's native size: real art isn't 32x32 or square,
+ * so both the display size and the collision circle below have to be derived from it rather
+ * than assumed. */
+const PLAYER_HEIGHT = TILE_SIZE * 1.6;
+
 /**
  * Grid-locked movement: the player always occupies exactly one raster tile and steps to an
  * adjacent one at a time, animated via tween rather than snapping instantly. This is what
@@ -30,10 +36,21 @@ export class PlayerSprite extends Phaser.Physics.Arcade.Sprite {
     this.tileY = tileY;
 
     scene.add.existing(this);
+
+    const scale = PLAYER_HEIGHT / this.height;
+    this.setDisplaySize(this.width * scale, PLAYER_HEIGHT);
+
     scene.physics.add.existing(this);
 
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setCircle(TILE_SIZE * 0.35, TILE_SIZE * 0.15, TILE_SIZE * 0.15);
+    // setCircle's radius/offset are in the sprite's *unscaled* source pixels and get
+    // re-multiplied by the GameObject's current scale every physics step (see MonsterSprite's
+    // constructor for the full explanation) - dividing by `scale` here keeps the actual
+    // in-world hitbox a constant size regardless of the underlying art asset's resolution, and
+    // centering the offset within the sprite's own unscaled dimensions keeps the circle at
+    // (this.x, this.y) regardless of aspect ratio.
+    const sourceRadius = (TILE_SIZE * 0.35) / scale;
+    body.setCircle(sourceRadius, this.width / 2 - sourceRadius, this.height / 2 - sourceRadius);
     // Movement is entirely tween-driven (see tryStep), never physics velocity - both flags
     // are needed to stop a collider from ever displacing the player's body during
     // separation, so a collision with a monster pushes the monster back and never the

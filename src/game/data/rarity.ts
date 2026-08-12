@@ -17,3 +17,11 @@ export function getRarityConfig(tier: RarityTier): RarityConfig {
   if (!config) throw new Error(`Unknown rarity tier: ${tier}`);
   return config;
 }
+
+const RARITY_RANK = new Map(RARITY_TIERS.map((tier, index) => [tier.tier, index]));
+
+/** Where a tier falls in RARITY_TIERS order (0 = normal, higher = rarer) - a single comparable
+ * number for tie-breaking when two items are otherwise equal (e.g. same stats, different skin). */
+export function rarityRank(tier: RarityTier): number {
+  return RARITY_RANK.get(tier) ?? 0;
+}

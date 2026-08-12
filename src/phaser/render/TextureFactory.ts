@@ -66,6 +66,96 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
     g.generateTexture(key, S, S);
   };
 
+  // Weapon-specific attack visuals (see ItemStats.art) - each pointing right by default like
+  // wedge/bolt above, so AttackSwipe/Projectile can rotate any of them to match facing/travel
+  // direction without knowing which shape it actually is.
+
+  /** A wide triangular axe-head on a short haft. */
+  const axeWedge = (key: string, color: number) => {
+    g.clear();
+    g.fillStyle(0x6b4a2b, 1);
+    g.fillRect(2, C - 1.5, S - 8, 3);
+    g.fillStyle(color, 0.9);
+    g.fillTriangle(4, C, S - 6, C - 11, S - 6, C + 11);
+    g.generateTexture(key, S, S);
+  };
+
+  /** A short, thin blade with a small guard - reads as quicker/lighter than the sword wedge. */
+  const daggerWedge = (key: string, color: number) => {
+    g.clear();
+    g.fillStyle(0x4a4a55, 1);
+    g.fillRect(4, C - 2, 7, 4);
+    g.fillStyle(color, 0.9);
+    g.fillTriangle(10, C - 3, S - 4, C, 10, C + 3);
+    g.generateTexture(key, S, S);
+  };
+
+  /** A wooden shaft ending in a round, studded head. */
+  const maceWedge = (key: string, color: number) => {
+    g.clear();
+    g.fillStyle(0x6b4a2b, 1);
+    g.fillRect(2, C - 2, S - 12, 4);
+    g.fillStyle(color, 1);
+    g.fillCircle(S - 8, C, 7);
+    g.lineStyle(1.5, 0x2a1a08, 1);
+    g.strokeCircle(S - 8, C, 7);
+    g.generateTexture(key, S, S);
+  };
+
+  /** A long shaft ending in a narrow point - the longest reach of the melee silhouettes. */
+  const spearWedge = (key: string, color: number) => {
+    g.clear();
+    g.fillStyle(0x6b4a2b, 1);
+    g.fillRect(2, C - 1.5, S - 6, 3);
+    g.fillStyle(color, 1);
+    g.fillTriangle(S - 10, C - 4, S - 2, C, S - 10, C + 4);
+    g.generateTexture(key, S, S);
+  };
+
+  /** A diamond shard, for the frost wand's projectile. */
+  const frostShard = (key: string, color: number) => {
+    g.clear();
+    const pts = [
+      { x: C + 8, y: C },
+      { x: C, y: C - 6 },
+      { x: C - 8, y: C },
+      { x: C, y: C + 6 },
+    ];
+    g.fillStyle(color, 1);
+    g.fillPoints(pts, true);
+    g.lineStyle(1.5, 0xffffff, 0.8);
+    g.strokePoints(pts, true);
+    g.generateTexture(key, S, S);
+  };
+
+  /** A glowing orb with a bright core, for the ember staff's projectile. */
+  const fireball = (key: string, color: number, coreColor: number) => {
+    g.clear();
+    g.fillStyle(color, 0.45);
+    g.fillCircle(C, C, 10);
+    g.fillStyle(color, 1);
+    g.fillCircle(C, C, 6);
+    g.fillStyle(coreColor, 1);
+    g.fillCircle(C, C, 3);
+    g.generateTexture(key, S, S);
+  };
+
+  /** A small sparkle/star, for the arcane tome's projectile. */
+  const arcaneSpark = (key: string, color: number) => {
+    g.clear();
+    g.fillStyle(color, 0.4);
+    g.fillCircle(C, C, 9);
+    const pts = [];
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const r = i % 2 === 0 ? 7 : 3;
+      pts.push({ x: C + Math.cos(angle) * r, y: C + Math.sin(angle) * r });
+    }
+    g.fillStyle(color, 1);
+    g.fillPoints(pts, true);
+    g.generateTexture(key, S, S);
+  };
+
   // Maze tiles - shaded for a little depth instead of a completely flat fill. Floor has one
   // key per MazeRenderer's autotile variant (see classifyFloorTile) - the placeholder doesn't
   // need to actually look different per variant, it just needs every key real art might not
@@ -181,8 +271,20 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   key_("key_exit", 0xf5d76e);
 
   circle("pickup_health", 0x4cd964, 8, 0x1c5c2a);
-  wedge("attack_swipe", 0xffffff);
-  bolt("projectile_bolt", 0xffe08a);
+
+  // Melee attack-swipe silhouettes, one per WeaponArt variant.
+  wedge("attack_swipe_sword", 0xe8eef5);
+  axeWedge("attack_swipe_axe", 0xb0b4c0);
+  daggerWedge("attack_swipe_dagger", 0xd8d8e0);
+  maceWedge("attack_swipe_mace", 0x9096a0);
+  spearWedge("attack_swipe_spear", 0xc7cdd6);
+
+  // Ranged projectile silhouettes, one per WeaponArt variant.
+  bolt("projectile_arrow", 0xd9b98a);
+  circle("projectile_stone", 0x8a8a8a, 5, 0x4a4a4a);
+  frostShard("projectile_frost", 0x8fd6ff);
+  fireball("projectile_fireball", 0xff6a3d, 0xffe08a);
+  arcaneSpark("projectile_arcane", 0xb35eff);
 
   // Item icons (used by inventory UI, not placed as world sprites - chests grant items directly)
   g.clear();

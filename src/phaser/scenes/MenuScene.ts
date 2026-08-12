@@ -52,7 +52,7 @@ export class MenuScene extends Phaser.Scene {
       hasSave,
     );
     this.addButton(BUTTON_START_Y + BUTTON_SPACING * 2, "How to Play", () => this.scene.launch(SCENE_KEYS.TUTORIAL));
-    this.addButton(BUTTON_START_Y + BUTTON_SPACING * 3, "Options", () => this.showComingSoon());
+    this.addButton(BUTTON_START_Y + BUTTON_SPACING * 3, "Options", () => this.scene.launch(SCENE_KEYS.OPTIONS));
 
     if (!localStorage.getItem(TUTORIAL_SEEN_KEY)) {
       localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
@@ -74,18 +74,5 @@ export class MenuScene extends Phaser.Scene {
     text.on("pointerover", () => text.setColor("#4ea8ff"));
     text.on("pointerout", () => text.setColor("#ffffff"));
     text.on("pointerdown", onClick);
-  }
-
-  private showComingSoon(): void {
-    const note = this.add
-      .text(GAME_WIDTH / 2, BUTTON_START_Y + BUTTON_SPACING * 3 + 30, "Coming soon", {
-        fontFamily: "monospace",
-        fontSize: "13px",
-        color: "#9a9aa5",
-      })
-      .setOrigin(0.5)
-      .setAlpha(0);
-
-    this.tweens.add({ targets: note, alpha: 1, yoyo: true, hold: 700, duration: 200, onComplete: () => note.destroy() });
   }
 }

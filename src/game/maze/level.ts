@@ -8,6 +8,12 @@ import { cellKey, type Cell, type TileGrid } from "./types";
 import { buildOpenAdjacency, type MazeGraph } from "./graph";
 import { validateSolvable } from "./validator";
 
+// A single hop reliably read as an instant win in practice: the boss's key drop lands right next
+// to where the player is already standing (they just killed it in melee/ranged range), so one
+// more step through an adjacent exit felt indistinguishable from the exit triggering on the kill
+// itself. Requiring a real multi-tile walk back makes that gap actually readable as a gap.
+const BOSS_DISTANCE_HOPS = 5;
+
 export interface GeneratedLevel {
   graph: MazeGraph;
   grid: TileGrid;
@@ -16,19 +22,37 @@ export interface GeneratedLevel {
   vaults: VaultRegion[];
   entrance: Cell;
   exit: Cell;
-  /** Where the boss actually stands - a cell adjacent to the exit, not the exit cell itself, so
-   * beating the boss and grabbing its key-drop doesn't leave the player already standing on the
-   * exit trigger. Falls back to the exit cell only in the impossible case of an isolated exit. */
+  /** Where the boss actually stands - several open-edge hops from the exit (see
+   * BOSS_DISTANCE_HOPS), never the exit cell itself, so beating the boss requires an actual walk
+   * back rather than reading as an instant win. Falls back to the exit cell only in the
+   * impossible case of an isolated exit. */
   bossCell: Cell;
 }
 
-/** A cell reachable from `cell` via one open edge - used to place the boss a step away from the
- * exit rather than directly on top of it. Picks deterministically (first match in edge order)
- * rather than randomly; which neighbor doesn't need extra variety since the exit cell itself is
- * already randomized per level. */
-function findAdjacentCell(graph: MazeGraph, cell: Cell): Cell | undefined {
-  const neighbors = buildOpenAdjacency(graph).get(cellKey(cell));
-  return neighbors && neighbors.length > 0 ? neighbors[0].other : undefined;
+/** BFS from `exit` over open edges (the same traversable graph used elsewhere for reachability,
+ * so this never lands on a cell the player couldn't otherwise get to), returning whichever cell
+ * is farthest away within `maxHops` steps - used to place the boss a real walk from the exit
+ * rather than one step away. Falls back toward closer cells in a maze too small to reach the cap,
+ * and to `exit` itself only in the degenerate case of an isolated exit cell. */
+function findBossCell(graph: MazeGraph, exit: Cell, maxHops: number): Cell {
+  const adjacency = buildOpenAdjacency(graph);
+  const visited = new Set<string>([cellKey(exit)]);
+  const queue: Array<{ cell: Cell; hops: number }> = [{ cell: exit, hops: 0 }];
+  let farthest: { cell: Cell; hops: number } = { cell: exit, hops: 0 };
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (current.hops >= maxHops) continue;
+    for (const { other } of adjacency.get(cellKey(current.cell)) ?? []) {
+      const key = cellKey(other);
+      if (visited.has(key)) continue;
+      visited.add(key);
+      const entry = { cell: other, hops: current.hops + 1 };
+      queue.push(entry);
+      if (entry.hops > farthest.hops) farthest = entry;
+    }
+  }
+  return farthest.cell;
 }
 
 export interface LevelGenerationOptions {
@@ -61,7 +85,7 @@ export function generateLevel(seed: number, options: LevelGenerationOptions): Ge
     const { doors, keys, vaults } = placeLocks(graph, lockCount, rng, entrance, exit, new Set([cellKey(exit)]));
 
     if (validateSolvable(graph, doors, keys, entrance, exit)) {
-      const bossCell = findAdjacentCell(graph, exit) ?? exit;
+      const bossCell = findBossCell(graph, exit, BOSS_DISTANCE_HOPS);
       return { graph, grid: rasterizeMaze(graph), doors, keys, vaults, entrance, exit, bossCell };
     }
   }
@@ -70,6 +94,6 @@ export function generateLevel(seed: number, options: LevelGenerationOptions): Ge
   const exit = pickFarCell(cols, rows, entrance, minExitDistance, rng);
   const graph = generateBaseMaze(cols, rows, rng, entrance);
   braidMaze(graph, braidFactor, rng);
-  const bossCell = findAdjacentCell(graph, exit) ?? exit;
+  const bossCell = findBossCell(graph, exit, BOSS_DISTANCE_HOPS);
   return { graph, grid: rasterizeMaze(graph), doors: [], keys: [], vaults: [], entrance, exit, bossCell };
 }

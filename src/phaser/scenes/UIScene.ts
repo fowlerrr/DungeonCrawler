@@ -1,16 +1,20 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, MAZE_VIEW_WIDTH, SCENE_KEYS, SIDEBAR_WIDTH } from "../../config/constants";
+import { getRarityConfig } from "../../game/data/rarity";
 import type { EquipmentSlot, ItemDef } from "../../game/data/types";
 import type { KeyLabel } from "../../game/systems/Keyring";
+import { totalAtk, totalDef } from "../../game/systems/PlayerProgression";
 import { InventoryPanel } from "../objects/InventoryPanel";
 import { MinimapRenderer } from "../render/MinimapRenderer";
 import type { GameScene } from "./GameScene";
 
 const PANEL_MARGIN = 12;
 const HUD_Y = PANEL_MARGIN;
-const MINIMAP_Y = 76;
+const MINIMAP_Y = 92; // clears hpText's 5 lines now that it includes an ATK/DEF row
 const MINIMAP_RESERVED_HEIGHT = 210;
 const EQUIP_Y = MINIMAP_Y + MINIMAP_RESERVED_HEIGHT;
+const EQUIP_LINE_HEIGHT = 17;
+const UNEQUIPPED_COLOR = "#5a5a68";
 const KEYS_LABEL_Y = EQUIP_Y + 52;
 const KEYS_ROW_Y = EQUIP_Y + 68;
 const KEYS_PER_ROW = 4;
@@ -38,7 +42,9 @@ const KEY_COLOR_HEX: Record<KeyLabel, string> = {
 export class UIScene extends Phaser.Scene {
   private minimap!: MinimapRenderer;
   private hpText!: Phaser.GameObjects.Text;
-  private equipText!: Phaser.GameObjects.Text;
+  private weaponText!: Phaser.GameObjects.Text;
+  private armorText!: Phaser.GameObjects.Text;
+  private accessoryText!: Phaser.GameObjects.Text;
   private keysContainer!: Phaser.GameObjects.Container;
   private lastKeysSignature = "";
   private inventoryPanel!: InventoryPanel;
@@ -64,7 +70,12 @@ export class UIScene extends Phaser.Scene {
       wordWrap: { width: contentWidth },
     };
     this.hpText = this.add.text(contentX, HUD_Y, "", textStyle).setScrollFactor(0).setDepth(200);
-    this.equipText = this.add.text(contentX, EQUIP_Y, "", textStyle).setScrollFactor(0).setDepth(200);
+    this.weaponText = this.add.text(contentX, EQUIP_Y, "", textStyle).setScrollFactor(0).setDepth(200);
+    this.armorText = this.add.text(contentX, EQUIP_Y + EQUIP_LINE_HEIGHT, "", textStyle).setScrollFactor(0).setDepth(200);
+    this.accessoryText = this.add
+      .text(contentX, EQUIP_Y + EQUIP_LINE_HEIGHT * 2, "", textStyle)
+      .setScrollFactor(0)
+      .setDepth(200);
 
     this.add.text(contentX, KEYS_LABEL_Y, "Keys:", { ...textStyle, color: "#9a9aa5" }).setScrollFactor(0).setDepth(200);
     this.keysContainer = this.add.container(contentX, KEYS_ROW_Y).setScrollFactor(0).setDepth(200);
@@ -149,16 +160,18 @@ export class UIScene extends Phaser.Scene {
     this.minimap.redraw(mazeGrid, fogOfWar, playerSprite.tileX, playerSprite.tileY);
 
     const player = playerSprite.logic;
+    const eq = inventory.equipped;
+    const atk = totalAtk(eq.weapon?.stats.damage, gameScene.statAllocation);
+    const def = totalDef(eq.armor?.stats.defense, eq.accessory?.stats.defense, gameScene.statAllocation);
     this.hpText.setText(
-      `Level: ${gameScene.levelNumber}\nHighest Level: ${gameScene.highestLevelReached}\nHP: ${player.hp}/${player.maxHp}\nGold: ${inventory.gold}`,
+      `Level: ${gameScene.levelNumber}\nHighest Level: ${gameScene.highestLevelReached}\nHP: ${player.hp}/${player.maxHp}\nATK: ${atk}  DEF: ${def}\nGold: ${inventory.gold}`,
     );
 
-    const eq = inventory.equipped;
-    this.equipText.setText(
-      [`Weapon: ${eq.weapon?.name ?? "-"}`, `Armor: ${eq.armor?.name ?? "-"}`, `Accessory: ${eq.accessory?.name ?? "-"}`].join(
-        "\n",
-      ),
-    );
+    this.weaponText.setText(`Weapon: ${eq.weapon?.name ?? "-"}`).setColor(eq.weapon ? getRarityConfig(eq.weapon.rarity).color : UNEQUIPPED_COLOR);
+    this.armorText.setText(`Armor: ${eq.armor?.name ?? "-"}`).setColor(eq.armor ? getRarityConfig(eq.armor.rarity).color : UNEQUIPPED_COLOR);
+    this.accessoryText
+      .setText(`Accessory: ${eq.accessory?.name ?? "-"}`)
+      .setColor(eq.accessory ? getRarityConfig(eq.accessory.rarity).color : UNEQUIPPED_COLOR);
 
     this.refreshKeys(gameScene.heldKeyLabels());
   }

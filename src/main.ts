@@ -8,6 +8,7 @@ import { GameOverScene } from "./phaser/scenes/GameOverScene";
 import { UIScene } from "./phaser/scenes/UIScene";
 import { PauseScene } from "./phaser/scenes/PauseScene";
 import { TutorialScene } from "./phaser/scenes/TutorialScene";
+import { OptionsScene } from "./phaser/scenes/OptionsScene";
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -20,7 +21,7 @@ const game = new Phaser.Game({
     default: "arcade",
     arcade: { gravity: { x: 0, y: 0 }, debug: false },
   },
-  scene: [BootScene, PreloadScene, MenuScene, GameScene, UIScene, GameOverScene, PauseScene, TutorialScene],
+  scene: [BootScene, PreloadScene, MenuScene, GameScene, UIScene, GameOverScene, PauseScene, TutorialScene, OptionsScene],
 });
 
 // Handy for poking at game state from the browser console during development.
