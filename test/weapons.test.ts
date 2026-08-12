@@ -4,19 +4,15 @@ import { RARITY_TIERS } from "../src/game/data/rarity";
 import type { RarityTier } from "../src/game/data/types";
 
 const RARITY_ORDER: RarityTier[] = RARITY_TIERS.map((t) => t.tier);
-
-/** A weapon reads as "ranged" once it clears melee reach by a comfortable margin - keeps this
- * independent of any specific range value so it doesn't need updating every time weapons.ts does. */
 const MELEE_RANGE_CEILING = 70;
 
 describe("weapon range progression", () => {
   it("every ranged weapon's range grows with rarity tier, tier-over-tier", () => {
     const rangedByTier = new Map<RarityTier, number[]>();
     for (const weapon of WEAPONS) {
-      const range = weapon.stats.range ?? 0;
-      if (range <= MELEE_RANGE_CEILING) continue;
+      if (!weapon.stats.ranged) continue;
       const list = rangedByTier.get(weapon.rarity) ?? [];
-      list.push(range);
+      list.push(weapon.stats.range ?? 0);
       rangedByTier.set(weapon.rarity, list);
     }
 
@@ -34,12 +30,17 @@ describe("weapon range progression", () => {
 
   it("keeps melee weapons close-range regardless of rarity", () => {
     for (const weapon of WEAPONS) {
+      if (weapon.stats.ranged) continue;
       const range = weapon.stats.range ?? 0;
-      const isRanged = range > MELEE_RANGE_CEILING;
-      if (!isRanged) {
-        expect(range).toBeGreaterThan(0);
-        expect(range).toBeLessThanOrEqual(MELEE_RANGE_CEILING);
-      }
+      expect(range).toBeGreaterThan(0);
+      expect(range).toBeLessThanOrEqual(MELEE_RANGE_CEILING);
+    }
+  });
+
+  it("every weapon marked ranged actually has a range beyond melee reach", () => {
+    for (const weapon of WEAPONS) {
+      if (!weapon.stats.ranged) continue;
+      expect(weapon.stats.range ?? 0).toBeGreaterThan(MELEE_RANGE_CEILING);
     }
   });
 });

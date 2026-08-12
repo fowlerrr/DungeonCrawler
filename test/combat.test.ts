@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { applyDamage, canAttack, heal, isWithinAttackCone, mitigateDamage, selectAttackTargets } from "../src/game/entities/Combat";
+import {
+  applyDamage,
+  canAttack,
+  heal,
+  isWithinAttackCone,
+  mitigateDamage,
+  selectAttackTargets,
+  selectNearestTarget,
+} from "../src/game/entities/Combat";
 import { Player } from "../src/game/entities/Player";
 
 describe("Combat", () => {
@@ -94,5 +102,25 @@ describe("selectAttackTargets", () => {
     const dead = candidate(5, 0, true);
     const result = selectAttackTargets(origin, facing, 40, 60, [inFront, behind, tooFar, dead]);
     expect(result).toEqual([inFront]);
+  });
+});
+
+describe("selectNearestTarget", () => {
+  const origin = { x: 0, y: 0 };
+
+  it("picks the closest of several candidates", () => {
+    const near = candidate(10, 0);
+    const mid = candidate(30, 0);
+    const far = candidate(100, 0);
+    expect(selectNearestTarget(origin, [far, near, mid])).toBe(near);
+  });
+
+  it("returns undefined for an empty list instead of throwing", () => {
+    expect(selectNearestTarget(origin, [])).toBeUndefined();
+  });
+
+  it("returns the only candidate when there's just one", () => {
+    const only = candidate(5, 5);
+    expect(selectNearestTarget(origin, [only])).toBe(only);
   });
 });

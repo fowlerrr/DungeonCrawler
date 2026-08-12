@@ -25,6 +25,8 @@ export class MonsterSprite extends Phaser.Physics.Arcade.Sprite {
   private healthBarBg: Phaser.GameObjects.Rectangle;
   private healthBarFill: Phaser.GameObjects.Rectangle;
   private healthBarY: number;
+  private damaged = false;
+  private fogVisible = true;
 
   constructor(scene: Phaser.Scene, x: number, y: number, def: MonsterDef, hpMult = 1, damageMult = 1) {
     super(scene, x, y, def.spriteKey);
@@ -99,14 +101,30 @@ export class MonsterSprite extends Phaser.Physics.Arcade.Sprite {
    * rough visual clue rather than an exact HP readout. */
   updateHealthBar(): void {
     const fraction = this.logic.hp / this.logic.maxHp;
-    const damaged = fraction < 1;
-    this.healthBarBg.setVisible(damaged);
-    this.healthBarFill.setVisible(damaged);
-    if (!damaged) return;
+    this.damaged = fraction < 1;
+    this.refreshBarVisibility();
+    if (!this.damaged) return;
 
     this.healthBarFill.width = HEALTH_BAR_WIDTH * Math.max(0, fraction);
     const color = fraction > 0.6 ? 0x3fae5c : fraction > 0.3 ? 0xe0c341 : 0xd94f4f;
     this.healthBarFill.setFillStyle(color, 1);
+  }
+
+  /** Called by GameScene every frame with whether this monster's current tile is inside the
+   * player's live fog-of-war vision - the fog overlay only *dims* previously-visited tiles
+   * (so the map layout stays remembered), which isn't enough to actually hide something moving
+   * through them, so the monster (and its health bar) needs to explicitly go invisible instead
+   * of relying on the overlay to cover it. */
+  setFogVisible(visible: boolean): void {
+    this.fogVisible = visible;
+    this.setVisible(visible);
+    this.refreshBarVisibility();
+  }
+
+  private refreshBarVisibility(): void {
+    const show = this.fogVisible && this.damaged;
+    this.healthBarBg.setVisible(show);
+    this.healthBarFill.setVisible(show);
   }
 
   die(): void {

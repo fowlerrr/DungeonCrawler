@@ -31,6 +31,10 @@ export interface ItemStats {
    * weapons (bows, staves, ...) set this well beyond melee range; line-of-sight still applies,
    * so a wall blocks the hit either way. */
   range?: number;
+  /** Marks a weapon as a projectile rather than a swing - an attack only ever hits the single
+   * closest valid target instead of everything in the cone, since an arrow/bolt stops at
+   * whatever it hits first rather than piercing through to whatever's behind it. */
+  ranged?: boolean;
   defense?: number;
   speedMult?: number;
   healAmount?: number;

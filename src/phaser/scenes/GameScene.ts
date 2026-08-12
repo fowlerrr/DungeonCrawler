@@ -17,7 +17,15 @@ import {
 import { ALL_ITEMS } from "../../game/data/items";
 import { BOSS, MONSTERS } from "../../game/data/monsters";
 import type { ItemDef } from "../../game/data/types";
-import { applyDamage, canAttack, canBeHit, heal, mitigateDamage, selectAttackTargets } from "../../game/entities/Combat";
+import {
+  applyDamage,
+  canAttack,
+  canBeHit,
+  heal,
+  mitigateDamage,
+  selectAttackTargets,
+  selectNearestTarget,
+} from "../../game/entities/Combat";
 import { findBlockingDoorAt } from "../../game/entities/doors";
 import { isTileOccupiedByMonster } from "../../game/entities/occupancy";
 import { Player } from "../../game/entities/Player";
@@ -26,12 +34,12 @@ import { hasLineOfSight } from "../../game/maze/lineOfSight";
 import { isTilePassable } from "../../game/maze/passability";
 import { pickRandomCells } from "../../game/maze/placement";
 import { Rng } from "../../game/maze/rng";
-import { cellCenterPx, cellToTile, edgeConnectorTile, tileCenterPx } from "../../game/maze/raster";
+import { cellCenterPx, cellToTile, edgeConnectorTile, pxToTile, tileCenterPx } from "../../game/maze/raster";
 import { cellKey, type TileGrid } from "../../game/maze/types";
 import { FogOfWar } from "../../game/systems/FogOfWar";
 import { Inventory } from "../../game/systems/Inventory";
 import { Keyring, type KeyLabel } from "../../game/systems/Keyring";
-import { getLevelConfig } from "../../game/systems/LevelConfig";
+import { getLevelConfig, type LevelConfig } from "../../game/systems/LevelConfig";
 import { boostForVault, rollLoot } from "../../game/systems/LootTable";
 import {
   allocatePoint,
@@ -74,6 +82,10 @@ export class GameScene extends Phaser.Scene {
   private fogRenderer!: FogOfWarRenderer;
   private keyring!: Keyring;
   private saveManager!: SaveManager;
+  private levelConfig!: LevelConfig;
+  /** Seeded per level (see buildLevel) so health-drop rolls stay reproducible for a given seed,
+   * same as the monster/chest placement RNGs. */
+  private dropRng!: Rng;
   private monsterSprites: MonsterSprite[] = [];
   /** Maze lock doors only (never the exit door, which never blocks movement) - consulted by
    * isTilePassable so grid movement can't step through a still-locked door. */
@@ -178,6 +190,8 @@ export class GameScene extends Phaser.Scene {
 
     for (const monster of this.monsterSprites) {
       monster.step(this.playerSprite.x, this.playerSprite.y, delta);
+      const { tx, ty } = pxToTile(monster.x, monster.y);
+      monster.setFogVisible(this.fogOfWar.isVisible(tx, ty));
     }
     this.monsterSprites = this.monsterSprites.filter((m) => m.active);
 
@@ -225,13 +239,19 @@ export class GameScene extends Phaser.Scene {
 
     // Range alone isn't enough for a ranged weapon - a wall between attacker and target blocks
     // the hit exactly like it blocks movement, so a bow can't shoot through the maze.
-    const targets = selectAttackTargets(
+    const candidates = selectAttackTargets(
       playerSprite,
       playerSprite.facing,
       range,
       PLAYER_ATTACK_CONE_HALF_ANGLE_DEG,
       this.monsterSprites,
     ).filter((monster) => hasLineOfSight(this.mazeGrid!, playerSprite.x, playerSprite.y, monster.x, monster.y));
+
+    // A melee swing can hit everything in its cone, but a ranged weapon fires a single
+    // projectile that stops at whatever it hits first - it shouldn't pierce through the nearest
+    // monster to also damage whatever's standing behind it.
+    const nearest = selectNearestTarget(playerSprite, candidates);
+    const targets = weapon?.stats.ranged ? (nearest ? [nearest] : []) : candidates;
     for (const monster of targets) {
       applyDamage(monster.logic, damage);
       monster.updateHealthBar();
@@ -241,7 +261,9 @@ export class GameScene extends Phaser.Scene {
           this.spawnExitKey(monster.x, monster.y);
         } else {
           this.inventory.gold += MONSTER_GOLD_DROP;
-          this.spawnHealthPickup(monster.x, monster.y);
+          if (this.dropRng.next() < this.levelConfig.healthDropChance) {
+            this.spawnHealthPickup(monster.x, monster.y);
+          }
         }
         monster.die();
       } else {
@@ -302,6 +324,8 @@ export class GameScene extends Phaser.Scene {
     this.blockingDoors = [];
 
     const config = getLevelConfig(this.levelNumber);
+    this.levelConfig = config;
+    this.dropRng = new Rng(seed + 2718);
     const level = generateLevel(seed, {
       cols: config.mazeCols,
       rows: config.mazeRows,

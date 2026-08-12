@@ -62,3 +62,24 @@ export function selectAttackTargets<T extends AttackCandidate>(
     return isWithinAttackCone(facing, toTarget, coneHalfAngleDeg);
   });
 }
+
+/** Picks whichever candidate is closest to `origin` - used for ranged weapons, which (unlike a
+ * melee swing) shouldn't hit everything in the cone at once: an arrow stops at whatever it hits
+ * first rather than piercing through to hit something standing behind it. Returns undefined for
+ * an empty list rather than throwing, so callers can treat "no target" and "nothing in range"
+ * the same way. */
+export function selectNearestTarget<T extends AttackCandidate>(
+  origin: { x: number; y: number },
+  candidates: readonly T[],
+): T | undefined {
+  let nearest: T | undefined;
+  let nearestDistanceSq = Infinity;
+  for (const candidate of candidates) {
+    const distanceSq = (candidate.x - origin.x) ** 2 + (candidate.y - origin.y) ** 2;
+    if (distanceSq < nearestDistanceSq) {
+      nearestDistanceSq = distanceSq;
+      nearest = candidate;
+    }
+  }
+  return nearest;
+}

@@ -26,4 +26,11 @@ describe("getLevelConfig", () => {
     expect(getLevelConfig(0)).toEqual(getLevelConfig(1));
     expect(getLevelConfig(-5)).toEqual(getLevelConfig(1));
   });
+
+  it("starts healthDropChance at 50% and climbs slowly toward 75%, never guaranteed", () => {
+    expect(getLevelConfig(1).healthDropChance).toBe(0.5);
+    expect(getLevelConfig(10).healthDropChance).toBeGreaterThan(getLevelConfig(1).healthDropChance);
+    expect(getLevelConfig(10).healthDropChance).toBeLessThan(1);
+    expect(getLevelConfig(1000).healthDropChance).toBeLessThanOrEqual(0.75);
+  });
 });

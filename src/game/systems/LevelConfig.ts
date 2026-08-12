@@ -13,6 +13,10 @@ export interface LevelConfig {
   rarityWeightBonus: Partial<Record<RarityTier, number>>;
   bossHpMult: number;
   bossDamageMult: number;
+  /** Chance [0,1] that killing a regular (non-boss) monster drops a health pickup - killing
+   * monsters had become a fully reliable way to stay topped off at max HP regardless of how
+   * dangerous the level actually was. */
+  healthDropChance: number;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -54,5 +58,9 @@ export function getLevelConfig(levelNumber: number): LevelConfig {
     // land close to the old curve by level 8+, so late-game difficulty is largely unchanged.
     bossHpMult: 1 + (n - 1) * 0.3,
     bossDamageMult: 0.8 + (n - 1) * 0.15,
+    // Starts at 50% (was a guaranteed 100%) and climbs slowly, capping well short of
+    // guaranteed again - a little more forgiving once levels get genuinely hard, without ever
+    // going back to "every kill tops you off."
+    healthDropChance: clamp(0.5 + (n - 1) * 0.01, 0.5, 0.75),
   };
 }
