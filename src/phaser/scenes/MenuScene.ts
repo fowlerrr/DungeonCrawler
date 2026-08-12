@@ -25,7 +25,7 @@ export class MenuScene extends Phaser.Scene {
 
     const panelWidth = 360;
     const panelTop = TITLE_Y - 55;
-    const panelBottom = BUTTON_START_Y + BUTTON_SPACING * 3 + 55;
+    const panelBottom = BUTTON_START_Y + BUTTON_SPACING * 4 + 55;
     const panel = this.add.graphics();
     panel.fillStyle(0x1a1a24, 0.92);
     panel.fillRoundedRect(GAME_WIDTH / 2 - panelWidth / 2, panelTop, panelWidth, panelBottom - panelTop, 14);
@@ -53,6 +53,7 @@ export class MenuScene extends Phaser.Scene {
     );
     this.addButton(BUTTON_START_Y + BUTTON_SPACING * 2, "How to Play", () => this.scene.launch(SCENE_KEYS.TUTORIAL));
     this.addButton(BUTTON_START_Y + BUTTON_SPACING * 3, "Options", () => this.scene.launch(SCENE_KEYS.OPTIONS));
+    this.addButton(BUTTON_START_Y + BUTTON_SPACING * 4, "Play in 3D (beta)", () => this.playIn3D());
 
     if (!localStorage.getItem(TUTORIAL_SEEN_KEY)) {
       localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
@@ -74,5 +75,23 @@ export class MenuScene extends Phaser.Scene {
     text.on("pointerover", () => text.setColor("#4ea8ff"));
     text.on("pointerout", () => text.setColor("#ffffff"));
     text.on("pointerdown", onClick);
+  }
+
+  /** Tears down this Phaser game entirely and hands the #app container to the Three.js client -
+   * dynamically imported so neither this scene nor bootPhaser.ts (which lists MenuScene as one
+   * of its scenes) ends up in a circular static import with the 3D side or with each other. */
+  private async playIn3D(): Promise<void> {
+    const [{ destroyPhaser }, { launch3D }] = await Promise.all([import("../../bootPhaser"), import("../../three/launch3D")]);
+    destroyPhaser();
+    const container = document.getElementById("app")!;
+    // Belt-and-suspenders on top of destroyPhaser's own canvas removal - a stray tutorial/
+    // options modal (each just a div appended straight to #app, not owned by any single
+    // disposable object) left open at the moment of switching modes would otherwise leak into
+    // whichever side loads next.
+    container.innerHTML = "";
+    launch3D(container, () => {
+      container.innerHTML = "";
+      import("../../bootPhaser").then(({ bootPhaser }) => bootPhaser());
+    });
   }
 }

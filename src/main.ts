@@ -1,30 +1,3 @@
-import Phaser from "phaser";
-import { GAME_HEIGHT, GAME_WIDTH } from "./config/constants";
-import { BootScene } from "./phaser/scenes/BootScene";
-import { PreloadScene } from "./phaser/scenes/PreloadScene";
-import { MenuScene } from "./phaser/scenes/MenuScene";
-import { GameScene } from "./phaser/scenes/GameScene";
-import { GameOverScene } from "./phaser/scenes/GameOverScene";
-import { UIScene } from "./phaser/scenes/UIScene";
-import { PauseScene } from "./phaser/scenes/PauseScene";
-import { TutorialScene } from "./phaser/scenes/TutorialScene";
-import { OptionsScene } from "./phaser/scenes/OptionsScene";
+import { bootPhaser } from "./bootPhaser";
 
-const game = new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: "app",
-  width: GAME_WIDTH,
-  height: GAME_HEIGHT,
-  backgroundColor: "#111111",
-  pixelArt: true,
-  physics: {
-    default: "arcade",
-    arcade: { gravity: { x: 0, y: 0 }, debug: false },
-  },
-  scene: [BootScene, PreloadScene, MenuScene, GameScene, UIScene, GameOverScene, PauseScene, TutorialScene, OptionsScene],
-});
-
-// Handy for poking at game state from the browser console during development.
-if (import.meta.env.DEV) {
-  (window as unknown as { game: Phaser.Game }).game = game;
-}
+bootPhaser();
