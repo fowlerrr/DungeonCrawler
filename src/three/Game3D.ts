@@ -10,7 +10,6 @@ import {
   PLAYER_ATTACK_RANGE,
   PLAYER_BASE_HP,
   TILE_SIZE,
-  VISION_RADIUS_TILES,
 } from "../config/constants";
 import { ALL_ITEMS } from "../game/data/items";
 import { BOSS, MONSTERS } from "../game/data/monsters";
@@ -42,11 +41,10 @@ import {
 } from "../game/systems/PlayerProgression";
 import { applyProfile, buildProfile, LocalStorageSaveManager, type SaveManager } from "../game/systems/SaveManager";
 import { isAutoEquipEnabled } from "../game/systems/Settings";
-import { DIRECTION_VECTORS } from "../game/util/direction";
 
 import { AttackVisuals3D } from "./combat/AttackVisuals3D";
 import { resolveCircleCollision } from "./collision3d";
-import { CAMERA_BACK_OFFSET, CAMERA_HEIGHT, CAMERA_LERP, PALETTE } from "./constants3d";
+import { EYE_HEIGHT, PALETTE, VISION_RADIUS_TILES_3D } from "./constants3d";
 import { pxToWorld } from "./coords";
 import { MonsterController3D } from "./entities/MonsterController3D";
 import { PlayerController3D } from "./entities/PlayerController3D";
@@ -140,7 +138,6 @@ export class Game3D {
   private lastTimeMs = 0;
   private rafHandle = 0;
   private running = false;
-  private cameraPos = new THREE.Vector3(0, CAMERA_HEIGHT, CAMERA_BACK_OFFSET);
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -148,13 +145,24 @@ export class Game3D {
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     container.appendChild(this.renderer.domElement);
 
-    this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
+    this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 200);
     this.scene.background = new THREE.Color(PALETTE.fog);
-    this.scene.fog = new THREE.Fog(PALETTE.fog, 6, 16);
+    // Starts well past a typical corridor width (tiles are 1 world unit) now that visited tiles
+    // stay lit permanently (see MazeMesh) - this only needs to fade genuinely distant geometry,
+    // not stand in for fog-of-war's old "how far can I see" job.
+    this.scene.fog = new THREE.Fog(PALETTE.fog, 10, 26);
     this.scene.add(this.levelGroup);
 
-    const ambient = new THREE.AmbientLight(PALETTE.ambient, 0.9);
-    const hemi = new THREE.HemisphereLight(0x445577, 0x0a0a10, 0.5);
+    // Bright enough that the palette's base colors (see constants3d.ts) actually read once lit -
+    // MeshLambertMaterial only ever shows reflected light, so under-lighting here is what made
+    // an already-moody palette collapse to near-black rather than just "dim." AmbientLight/
+    // HemisphereLight intensity is still the old flat 0-2ish multiplier scale, but PointLight
+    // (the torch, below) is not - this Three.js version always uses physically-correct photometric
+    // units for point/spot lights, where a "reasonable-looking" intensity is now in the tens, not
+    // low single digits (confirmed empirically: intensity 1.5 rendered a lit surface at ~35/255,
+    // intensity 15 at ~115/255, at a couple of units' distance).
+    const ambient = new THREE.AmbientLight(PALETTE.ambient, 2.2);
+    const hemi = new THREE.HemisphereLight(0x8899cc, 0x2a2a38, 1.2);
     this.scene.add(ambient, hemi);
 
     this.hud = new Hud3D(container);
@@ -178,6 +186,12 @@ export class Game3D {
 
     this.input.onPress("Escape", () => this.togglePauseMenu());
     this.input.onPress("KeyI", () => this.toggleInventoryPanel());
+    // Turning is a discrete snap (one 90° turn per keypress), not something held keys spin
+    // continuously - see InputController3D/PlayerController3D.turn.
+    this.input.onPress("KeyA", () => this.player?.turn(-1));
+    this.input.onPress("ArrowLeft", () => this.player?.turn(-1));
+    this.input.onPress("KeyD", () => this.player?.turn(1));
+    this.input.onPress("ArrowRight", () => this.player?.turn(1));
 
     this.handleResize();
     window.addEventListener("resize", this.handleResize);
@@ -250,11 +264,16 @@ export class Game3D {
     const entranceTile = cellToTile(level.entrance);
     const player = new Player(PLAYER_BASE_HP + bonusesFromAllocation(this.statAllocation).bonusHp);
     this.player = new PlayerController3D(entranceTile.tx, entranceTile.ty, player);
+    this.player.hideBody(); // the camera sits at the player's own position in first person
     this.levelGroup.add(this.player.mesh);
     this.attackVisuals = new AttackVisuals3D(this.levelGroup);
 
-    const pointLight = new THREE.PointLight(PALETTE.torchLight, 1.4, 8, 2);
-    pointLight.position.set(0, 1.6, 0);
+    // A carried torch, roughly at hand height - the main source of near-field light in first
+    // person, since it travels with the player rather than being fixed to the world. Intensity
+    // is photometric (see the lighting comment above) - 28 lights a same-room wall clearly
+    // without blowing out to solid white right next to it.
+    const pointLight = new THREE.PointLight(PALETTE.torchLight, 28, 14, 1.6);
+    pointLight.position.set(0, EYE_HEIGHT - 0.1, 0);
     this.player.mesh.add(pointLight);
 
     for (const door of level.doors) {
@@ -348,7 +367,7 @@ export class Game3D {
 
   private onPlayerArriveTile(): void {
     if (!this.player || !this.fogOfWar || !this.mazeMesh) return;
-    this.fogOfWar.update(this.player.tileX, this.player.tileY, VISION_RADIUS_TILES);
+    this.fogOfWar.update(this.player.tileX, this.player.tileY, VISION_RADIUS_TILES_3D);
     this.mazeMesh.updateFog(this.fogOfWar);
   }
 
@@ -397,12 +416,11 @@ export class Game3D {
     }
     if (this.gameOverShown) return;
 
-    const direction = this.input.getDiscreteDirection();
-    if (direction) {
-      const speedMultiplier = this.inventory.equipped.accessory?.stats.speedMult ?? 1;
-      this.player.tryStep(DIRECTION_VECTORS[direction], (tx, ty) => this.isTilePassable(tx, ty), speedMultiplier, () =>
-        this.onPlayerArriveTile(),
-      );
+    const speedMultiplier = this.inventory.equipped.accessory?.stats.speedMult ?? 1;
+    if (this.input.isForwardDown()) {
+      this.player.tryStepForward((tx, ty) => this.isTilePassable(tx, ty), speedMultiplier, () => this.onPlayerArriveTile());
+    } else if (this.input.isBackwardDown()) {
+      this.player.tryStepBackward((tx, ty) => this.isTilePassable(tx, ty), speedMultiplier, () => this.onPlayerArriveTile());
     }
     this.player.update(deltaMs);
 
@@ -626,17 +644,16 @@ export class Game3D {
     this.onQuitToMenu();
   }
 
+  /** True first-person: the camera sits exactly at the player's own position and eye height,
+   * looking wherever `facing` points - walking is a smooth glide (it just follows the same
+   * lerped tile-step position PlayerController3D's mesh does), turning is an instant 90° snap to
+   * match the equally-instant facing change, the classic grid-crawler feel rather than a smoothed
+   * rotation. */
   private updateCamera(): void {
     if (!this.player) return;
     const world = pxToWorld(this.player.x, this.player.y);
-    const facingDir = new THREE.Vector3(this.player.facing.x, 0, this.player.facing.y);
-    if (facingDir.lengthSq() === 0) facingDir.set(0, 0, 1);
-    facingDir.normalize();
-
-    const desired = new THREE.Vector3(world.x - facingDir.x * CAMERA_BACK_OFFSET, CAMERA_HEIGHT, world.z - facingDir.z * CAMERA_BACK_OFFSET);
-    this.cameraPos.lerp(desired, CAMERA_LERP);
-    this.camera.position.copy(this.cameraPos);
-    this.camera.lookAt(world.x, 0.6, world.z);
+    this.camera.position.set(world.x, EYE_HEIGHT, world.z);
+    this.camera.lookAt(world.x + this.player.facing.x, EYE_HEIGHT, world.z + this.player.facing.y);
 
     for (const monster of this.monsters) monster.faceCamera(this.camera.position);
   }

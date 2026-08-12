@@ -17,21 +17,33 @@ export const PLAYER_MESH_RADIUS = 0.28;
 export const MONSTER_MESH_HEIGHT = 0.8;
 export const BOSS_MESH_HEIGHT = 1.3;
 
-export const CAMERA_HEIGHT = 6.5;
-export const CAMERA_BACK_OFFSET = 4.5;
-export const CAMERA_LERP = 0.12;
+/** First-person only - camera sits at the player's own position and eye height, looking
+ * wherever `facing` points, rather than trailing behind/above like a third-person chase cam. */
+export const EYE_HEIGHT = 1.0;
+
+/** How many tiles the fog-of-war reveals from the player's current tile - deliberately much
+ * larger than the 2D game's VISION_RADIUS_TILES (5). A 2D top-down radius reads fine as "how far
+ * you can see", but the same radius in a first-person hallway view means the corridor ahead
+ * visibly ends in a wall of black a few steps out, well before it should. Revealed tiles are
+ * lit realistically from here on (see MazeMesh) rather than re-hidden once out of radius, so
+ * this only controls how far *ahead* gets revealed as you walk, not how dark things look. */
+export const VISION_RADIUS_TILES_3D = 12;
 
 /** Dark, desaturated palette matching the 2D UI's existing dark theme (#1a1a24 panels, #4ea8ff
- * accent) rather than a generic default - low-poly flat-shaded blocks, no textures. */
+ * accent) rather than a generic default - low-poly flat-shaded blocks, no textures. Lighter than
+ * a first instinct "moody dungeon" palette would suggest: MeshLambertMaterial only ever shows
+ * light reflected off these colors, so a genuinely dark base color plus modest lighting reads as
+ * near-black on screen - these are tuned to stay legible once actually lit (see Game3D's lights
+ * and MazeMesh's fully-lit-once-visited reveal), not to look right as flat swatches alone. */
 export const PALETTE = {
-  floor: 0x232330,
-  floorAlt: 0x2b2b3a,
-  wall: 0x14141c,
-  wallTop: 0x1c1c28,
+  floor: 0x4a4a5e,
+  floorAlt: 0x3c3c4c,
+  wall: 0x565668,
+  wallTop: 0x5c5c70,
   exitDoor: 0xf5d76e,
-  fog: 0x0a0a10,
-  ambient: 0x3a3a55,
-  torchLight: 0xffcf8a,
+  fog: 0x22222e,
+  ambient: 0x8888aa,
+  torchLight: 0xffd9a0,
   playerBody: 0x2f6fb0,
   playerAccent: 0x9fd6ff,
   slime: 0x3fae5c,

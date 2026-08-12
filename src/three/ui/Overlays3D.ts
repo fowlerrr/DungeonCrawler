@@ -129,8 +129,9 @@ export class PauseMenu3D {
 }
 
 const TUTORIAL_LINES = [
-  "Move: Arrow keys or WASD",
-  "Attack: Space (aims at your last move direction)",
+  "Turn: A/D or Left/Right arrows (a snap 90° turn, not a spin)",
+  "Walk: W/Up to step forward, S/Down to step back",
+  "Attack: Space (aims wherever you're currently facing)",
   "Equipment: I - pick a weapon, armor, and accessory",
   "Pause / this menu: ESC",
   "",
