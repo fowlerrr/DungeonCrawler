@@ -1,3 +1,4 @@
+import { IS_TOUCH_DEVICE } from "../../config/device";
 import type { StatAllocation } from "../../game/systems/PlayerProgression";
 import { bonusesFromAllocation, totalAtk, totalDef, totalStatPoints, unspentPoints } from "../../game/systems/PlayerProgression";
 import { isAutoEquipEnabled, setAutoEquipEnabled } from "../../game/systems/Settings";
@@ -185,19 +186,28 @@ export function showCredits3D(root: HTMLElement): Modal {
   return modal;
 }
 
-/** DOM port of GameOverScene.ts - same "died on level N, press Space to try again" flow. */
+/** DOM port of GameOverScene.ts - same "died on level N, press Space (or tap, on touch devices -
+ * see GameOverScene.ts's own comment on why) to try again" flow. */
 export function showGameOver3D(root: HTMLElement, levelNumber: number, onContinue: () => void): Modal {
   const modal = createModal(root, 420, "");
   modal.panel.style.borderTopColor = "#ff6b6b";
   modal.panel.appendChild(el("div", { fontSize: "24px", color: "#ff6b6b", textAlign: "center", marginBottom: "12px" }, `You died on level ${levelNumber}`));
-  modal.panel.appendChild(el("div", { fontSize: "14px", color: THEME.text, textAlign: "center" }, "Press SPACE to try again"));
+  modal.panel.appendChild(
+    el("div", { fontSize: "14px", color: THEME.text, textAlign: "center" }, IS_TOUCH_DEVICE ? "Tap to try again" : "Press SPACE to try again"),
+  );
 
-  const onKey = (e: KeyboardEvent) => {
-    if (e.code !== "Space") return;
+  const restart = () => {
     window.removeEventListener("keydown", onKey);
+    modal.backdrop.removeEventListener("pointerdown", restart);
     modal.close();
     onContinue();
   };
+  const onKey = (e: KeyboardEvent) => {
+    if (e.code === "Space") restart();
+  };
   window.addEventListener("keydown", onKey);
+  // The backdrop, not just the panel, so there's a big easy tap target on touch devices - no
+  // SPACE key to fall back on there, same reasoning as GameOverScene.ts's backdrop.
+  modal.backdrop.addEventListener("pointerdown", restart);
   return modal;
 }

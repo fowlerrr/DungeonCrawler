@@ -42,6 +42,7 @@ import {
 } from "../game/systems/PlayerProgression";
 import { applyProfile, buildProfile, LocalStorageSaveManager, type SaveManager } from "../game/systems/SaveManager";
 import { isAutoEquipEnabled } from "../game/systems/Settings";
+import { IS_TOUCH_DEVICE } from "../config/device";
 
 import { AttackVisuals3D } from "./combat/AttackVisuals3D";
 import { resolveCircleCollision } from "./collision3d";
@@ -50,6 +51,7 @@ import { pxToWorld } from "./coords";
 import { MonsterController3D } from "./entities/MonsterController3D";
 import { PlayerController3D } from "./entities/PlayerController3D";
 import { InputController3D } from "./input/InputController3D";
+import { TouchControls3D } from "./input/TouchControls3D";
 import { MazeMesh } from "./MazeMesh";
 import { loadTextures3D, type Textures3D } from "./Textures3D";
 import { el } from "./ui/domHelpers";
@@ -124,6 +126,12 @@ export class Game3D {
   private readonly inventoryPanel: InventoryPanel3D;
   private readonly pauseMenu: PauseMenu3D;
   private readonly damageFlash: HTMLDivElement;
+  /** On-screen movement/turn/attack cluster, only created on touch devices (see
+   * IS_TOUCH_DEVICE) - null on desktop, where keyboard already covers everything. Unlike the 2D
+   * game's TouchControls, this doesn't need recreating per level/restart since InputController3D
+   * (unlike the 2D InputController) is a single instance for the whole page session, not rebuilt
+   * per GameScene.create() run. */
+  private readonly touchControls: TouchControls3D | null;
   private attackVisuals!: AttackVisuals3D;
   private textures: Textures3D | null = null;
 
@@ -227,6 +235,8 @@ export class Game3D {
     this.input.onPress("ArrowLeft", () => this.player?.turn(-1));
     this.input.onPress("KeyD", () => this.player?.turn(1));
     this.input.onPress("ArrowRight", () => this.player?.turn(1));
+
+    this.touchControls = IS_TOUCH_DEVICE ? new TouchControls3D(container, this.input) : null;
 
     this.handleResize();
     window.addEventListener("resize", this.handleResize);
@@ -469,8 +479,10 @@ export class Game3D {
 
     if (this.player.logic.hp <= 0 && !this.gameOverShown) {
       this.gameOverShown = true;
+      this.touchControls?.hide();
       showGameOver3D(this.container, this.levelNumber, () => {
         this.gameOverShown = false;
+        this.touchControls?.show();
         this.restartAfterDeath();
       });
       return;
@@ -720,12 +732,14 @@ export class Game3D {
     if (this.inventoryPanel.isOpen()) {
       this.inventoryPanel.close();
       this.paused = false;
+      this.touchControls?.show();
     } else {
       this.inventoryPanel.show(
         this.inventory.owned.filter((i) => i.slot !== undefined),
         { weapon: this.inventory.equipped.weapon?.id, armor: this.inventory.equipped.armor?.id, accessory: this.inventory.equipped.accessory?.id },
       );
       this.paused = true;
+      this.touchControls?.hide();
     }
   }
 
@@ -740,6 +754,7 @@ export class Game3D {
   private openPauseMenu(): void {
     if (this.paused) return;
     this.paused = true;
+    this.touchControls?.hide();
     this.pauseMenu.show();
   }
 
@@ -747,6 +762,7 @@ export class Game3D {
   private closePauseMenu(): void {
     this.pauseMenu.close();
     this.paused = false;
+    this.touchControls?.show();
   }
 
   onQuitToMenu: () => void = () => {};
@@ -757,6 +773,7 @@ export class Game3D {
     this.persist();
     this.pauseMenu.close();
     this.paused = false;
+    this.touchControls?.hide();
     this.onQuitToMenu();
   }
 
@@ -813,6 +830,7 @@ export class Game3D {
     this.input.dispose();
     this.hud.dispose();
     this.toasts.dispose();
+    this.touchControls?.destroy();
     this.damageFlash.remove();
     this.renderer.domElement.remove();
     this.renderer.dispose();

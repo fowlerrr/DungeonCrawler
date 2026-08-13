@@ -1,3 +1,4 @@
+import { IS_TOUCH_DEVICE } from "../../config/device";
 import { getRarityConfig } from "../../game/data/rarity";
 import type { ItemDef } from "../../game/data/types";
 import type { FogOfWar } from "../../game/systems/FogOfWar";
@@ -6,7 +7,11 @@ import { computeMinimapTileSize } from "../../game/util/math";
 import type { KeyLabel } from "../../game/systems/Keyring";
 import { el, THEME } from "./domHelpers";
 
-const SIDEBAR_WIDTH = 240;
+// Narrower on touch so it leaves more of a phone-sized viewport for the actual 3D view - unlike
+// the 2D game's canvas, this sidebar is plain DOM flow (already has overflowY: auto and no fixed
+// per-element positions), so it doesn't need the fuller responsive rework 2D's UIScene did; it
+// just reflows naturally at a different width.
+const SIDEBAR_WIDTH = IS_TOUCH_DEVICE ? 190 : 240;
 const MAX_MINIMAP_TILE_PX = 4;
 export const KEY_COLOR_HEX: Record<KeyLabel, string> = {
   red: "#ff5555",
@@ -90,28 +95,33 @@ export class Hud3D {
     this.keysLine = el("div", { whiteSpace: "pre-line", marginBottom: "12px" });
     const keysHeading = el("div", { color: THEME.dim, marginBottom: "4px" }, "Keys:");
 
-    const controls = el("div", { color: THEME.dim, marginBottom: "8px" }, "I: equipment   ESC: menu");
-    const menuButton = el(
-      "div",
-      { color: THEME.accent, cursor: "pointer" },
-      "[ Menu ]",
-    );
+    const elements: HTMLElement[] = [this.statsText, this.minimapCanvas, equipHeading, this.weaponLine, this.armorLine, this.accessoryLine, keysHeading, this.keysLine];
+
+    // Neither shortcut applies on touch (no physical I/ESC key) - the [ Equip ]/[ Menu ] buttons
+    // below are the touch-friendly way to reach the same things on any device, so this hint is
+    // skipped entirely on mobile rather than just left inaccurate, same as UIScene.ts's version.
+    if (!IS_TOUCH_DEVICE) {
+      elements.push(el("div", { color: THEME.dim, marginBottom: "8px" }, "I: equipment   ESC: menu"));
+    }
+
+    // [ Equip ] was previously missing entirely - onOpenInventory existed as a callback with
+    // nothing in the DOM ever calling it, so opening the equipment panel only ever worked via
+    // the "I" key. Shown on both platforms rather than only touch, same reasoning as [ Menu ]
+    // already coexisting with ESC: a visible, clickable affordance is good UX regardless of
+    // input method, not just a mobile-only necessity.
+    const equipButton = el("div", { color: THEME.accent, cursor: "pointer", marginBottom: "4px" }, "[ Equip ]");
+    equipButton.addEventListener("click", () => this.onOpenInventory());
+    equipButton.addEventListener("mouseenter", () => (equipButton.style.color = THEME.text));
+    equipButton.addEventListener("mouseleave", () => (equipButton.style.color = THEME.accent));
+    elements.push(equipButton);
+
+    const menuButton = el("div", { color: THEME.accent, cursor: "pointer" }, "[ Menu ]");
     menuButton.addEventListener("click", () => this.onOpenMenu());
     menuButton.addEventListener("mouseenter", () => (menuButton.style.color = THEME.text));
     menuButton.addEventListener("mouseleave", () => (menuButton.style.color = THEME.accent));
+    elements.push(menuButton);
 
-    this.root.append(
-      this.statsText,
-      this.minimapCanvas,
-      equipHeading,
-      this.weaponLine,
-      this.armorLine,
-      this.accessoryLine,
-      keysHeading,
-      this.keysLine,
-      controls,
-      menuButton,
-    );
+    this.root.append(...elements);
     parent.appendChild(this.root);
   }
 

@@ -48,8 +48,7 @@ On Windows, `run-dev.cmd` is a double-click shortcut that does the same as `npm 
 
 On a touch device, an on-screen d-pad and attack button appear automatically in place of the
 table above - no separate mode to pick. The fixed desktop-sized layout still fits best in
-landscape; portrait works but leaves large letterboxed bars above/below. The 3D client doesn't
-have touch controls yet.
+landscape; portrait works but leaves large letterboxed bars above/below.
 
 ### 3D (first-person)
 
@@ -63,6 +62,10 @@ the maze's grid (every wall is axis-aligned, so facing is always one of 4 direct
 | Attack | Space (aims wherever you're currently facing) |
 | Equipment menu | I |
 | Pause menu | Esc |
+
+On a touch device, an on-screen cluster (forward/backward, turn left/right) plus an attack button
+appear in place of the table above. Unlike the 2D client, the 3D view itself just fills whatever
+space it has rather than scaling a fixed layout, so there's no letterboxing to worry about here.
 
 Turning mid-step is buffered rather than ignored — you can commit to a turn slightly before
 you're centered on the tile, and it applies cleanly the moment you land there instead of needing
