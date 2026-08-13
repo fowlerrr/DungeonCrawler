@@ -18,15 +18,22 @@ const COLUMN_HEIGHT = 240;
  * buttons/offset tracking, since a real browser gives us that for free here. Closable by the
  * "I" key (Game3D), the ✕ button, or tapping the backdrop - the first is desktop-only, so the
  * other two exist specifically so a touch device (no physical I key) always has a way out;
- * previously there was no close button or backdrop-tap at all, only the key. */
+ * previously there was no close button or backdrop-tap at all, only the key. The ✕/backdrop
+ * paths go through the same onClose callback Game3D wires up for the "I" key (toggling pause
+ * and the on-screen touch controls back on) rather than calling this class's own close()
+ * directly - close() alone only removes the modal, it was never responsible for un-pausing the
+ * game, so a first version of this fix silently left both paused and the touch controls hidden
+ * after closing via anything but the keyboard. */
 export class InventoryPanel3D {
   private modal: Modal | null = null;
   private readonly root: HTMLElement;
   private readonly onSelect: (item: ItemDef) => void;
+  private readonly onClose: () => void;
 
-  constructor(root: HTMLElement, onSelect: (item: ItemDef) => void) {
+  constructor(root: HTMLElement, onSelect: (item: ItemDef) => void, onClose: () => void) {
     this.root = root;
     this.onSelect = onSelect;
+    this.onClose = onClose;
   }
 
   /** Whether the panel is currently shown. */
@@ -50,11 +57,11 @@ export class InventoryPanel3D {
     // plain listener on the backdrop would also fire for clicks on the panel/rows/buttons
     // inside it, since DOM click events bubble up through ancestors by default.
     modal.backdrop.addEventListener("pointerdown", (e) => {
-      if (e.target === modal.backdrop) this.close();
+      if (e.target === modal.backdrop) this.onClose();
     });
 
     const closeButton = el("div", { position: "absolute", top: "14px", right: "18px", color: THEME.dim, cursor: "pointer", fontSize: "16px" }, "✕");
-    closeButton.addEventListener("click", () => this.close());
+    closeButton.addEventListener("click", () => this.onClose());
     closeButton.addEventListener("mouseenter", () => (closeButton.style.color = THEME.text));
     closeButton.addEventListener("mouseleave", () => (closeButton.style.color = THEME.dim));
     modal.panel.style.position = "relative";

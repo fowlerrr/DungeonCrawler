@@ -211,7 +211,11 @@ export class Game3D {
     this.hud.onOpenInventory = () => this.toggleInventoryPanel();
     this.hud.onOpenMenu = () => this.openPauseMenu();
     this.toasts = new ToastLayer3D(container);
-    this.inventoryPanel = new InventoryPanel3D(container, (item) => this.handleEquip(item));
+    this.inventoryPanel = new InventoryPanel3D(
+      container,
+      (item) => this.handleEquip(item),
+      () => this.toggleInventoryPanel(),
+    );
     this.pauseMenu = new PauseMenu3D(container, {
       getData: () => ({
         statAllocation: this.statAllocation,
