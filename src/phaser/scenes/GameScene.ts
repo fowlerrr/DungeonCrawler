@@ -55,6 +55,7 @@ import { applyProfile, buildProfile, LocalStorageSaveManager, type SaveManager }
 import { isAutoEquipEnabled } from "../../game/systems/Settings";
 import { DIRECTION_VECTORS } from "../../game/util/direction";
 import { InputController } from "../input/InputController";
+import { isTouchDevice, TouchControls } from "../input/TouchControls";
 import { spawnAttackSwipe } from "../objects/AttackSwipe";
 import { ChestSprite } from "../objects/ChestSprite";
 import { DoorSprite } from "../objects/DoorSprite";
@@ -106,6 +107,15 @@ export class GameScene extends Phaser.Scene {
    * by nearby monsters; a full-screen flash reads unmistakably regardless of where on screen the
    * hit actually happened. */
   private damageFlash!: Phaser.GameObjects.Rectangle;
+  /** On-screen d-pad + attack button, only created on touch devices (see isTouchDevice) - null
+   * on desktop, where keyboard already covers everything. Recreated each time create() runs
+   * (see create()) since it's bound to that specific run's InputController instance. */
+  private touchControls: TouchControls | null = null;
+  /** Stable bound references (not inline arrow functions) so create() can `.off()` the exact
+   * listener it previously added before re-adding it - see create()'s comment for why that
+   * matters. Declared as fields rather than methods so `this` is already bound. */
+  private readonly hideTouchControls = () => this.touchControls?.hide();
+  private readonly showTouchControls = () => this.touchControls?.show();
 
   constructor() {
     super(SCENE_KEYS.GAME);
@@ -115,6 +125,21 @@ export class GameScene extends Phaser.Scene {
    * clean; omitted or false (Continue, or GameScene started with no data at all) resumes it. */
   create(data: { fresh?: boolean } = {}): void {
     this.inputController = new InputController(this);
+    // Rebuilt from scratch alongside inputController rather than reused, since its button
+    // handlers close over that specific instance - a stale TouchControls left over from an
+    // earlier create() run (e.g. a prior "New Game" this page load) would feed touches into an
+    // InputController this scene no longer reads from.
+    this.touchControls?.destroy();
+    this.touchControls = isTouchDevice() ? new TouchControls(document.body, this.inputController) : null;
+    // `this.events` doesn't exist yet at constructor time (Phaser wires up scene systems after
+    // construction), so this has to live here instead - and since create() reruns every "New
+    // Game"/"Continue" over the life of the page (this Scene instance is reused, not
+    // reconstructed), off() before on() keeps exactly one of each listener registered rather
+    // than piling up a duplicate on every replay.
+    this.events.off(Phaser.Scenes.Events.PAUSE, this.hideTouchControls).on(Phaser.Scenes.Events.PAUSE, this.hideTouchControls);
+    this.events.off(Phaser.Scenes.Events.RESUME, this.showTouchControls).on(Phaser.Scenes.Events.RESUME, this.showTouchControls);
+    this.events.off(Phaser.Scenes.Events.SHUTDOWN, this.hideTouchControls).on(Phaser.Scenes.Events.SHUTDOWN, this.hideTouchControls);
+
     this.inventory = new Inventory();
     this.saveManager = new LocalStorageSaveManager();
     this.levelNumber = 1;

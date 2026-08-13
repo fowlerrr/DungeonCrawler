@@ -46,6 +46,11 @@ On Windows, `run-dev.cmd` is a double-click shortcut that does the same as `npm 
 | Equipment menu | I |
 | Pause menu | Esc |
 
+On a touch device, an on-screen d-pad and attack button appear automatically in place of the
+table above - no separate mode to pick. The fixed desktop-sized layout still fits best in
+landscape; portrait works but leaves large letterboxed bars above/below. The 3D client doesn't
+have touch controls yet.
+
 ### 3D (first-person)
 
 Movement is tank-style rather than free-look: turning and walking are separate actions, matching

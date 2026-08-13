@@ -23,6 +23,18 @@ export function bootPhaser(): Phaser.Game {
     parent: "app",
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
+    // FIT scales the fixed GAME_WIDTH x GAME_HEIGHT canvas down (preserving aspect ratio,
+    // letterboxed) to whatever viewport it's actually running in - without this, the canvas
+    // stays literally 1020x600 CSS pixels and just overflows/scrolls on a phone screen. Doesn't
+    // reflow the sidebar HUD or menu layout for a narrow screen, just makes the existing
+    // desktop-shaped layout fit rather than overflow; a phone in portrait still ends up with
+    // thick letterboxing top/bottom since 1020x600 is a wide landscape shape.
+    scale: {
+      mode: Phaser.Scale.FIT,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+      width: GAME_WIDTH,
+      height: GAME_HEIGHT,
+    },
     backgroundColor: "#111111",
     pixelArt: true,
     physics: {

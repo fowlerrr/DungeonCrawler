@@ -3,15 +3,45 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Dungeon Crawler</title>
     <style>
-      html, body { margin: 0; padding: 0; background: #111; height: 100%; }
+      /* touch-action: none stops the browser from treating on-screen taps/drags as page
+         scroll/pinch-zoom gestures - without it, dragging a finger across the d-pad (see
+         TouchControls.ts) can trigger the browser's own scroll instead of just moving the
+         player. overscroll-behavior covers Safari's rubber-band bounce, which touch-action
+         alone doesn't stop everywhere. */
+      html, body { margin: 0; padding: 0; background: #111; height: 100%; touch-action: none; overscroll-behavior: none; }
       #app { display: flex; align-items: center; justify-content: center; height: 100%; }
+
+      /* The game's fixed 1020x600 layout is landscape-shaped - in portrait on a phone it'd
+         scale down to a thin, barely-playable strip. Pure CSS (no JS) so it can't ever get out
+         of sync with actual orientation, and it hides itself automatically the moment the phone
+         is rotated, without needing a dismiss button. Gated on `pointer: coarse` so it never
+         shows on a narrow desktop browser window, which just needs a resize, not a rotate. */
+      #rotate-hint { display: none; }
+      @media (orientation: portrait) and (pointer: coarse) {
+        #rotate-hint {
+          display: flex;
+          position: fixed;
+          inset: 0;
+          z-index: 1000;
+          background: rgba(13, 13, 20, 0.97);
+          color: #d0d0da;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 32px;
+          font-family: monospace;
+          font-size: 16px;
+          line-height: 1.6;
+        }
+      }
     </style>
   </head>
   <body>
     <div id="app"></div>
+    <div id="rotate-hint">Rotate your device to landscape<br />for the best experience</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
