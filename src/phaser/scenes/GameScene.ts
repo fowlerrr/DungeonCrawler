@@ -32,7 +32,7 @@ import { findBlockingDoorAt } from "../../game/entities/doors";
 import { isTileOccupiedByMonster } from "../../game/entities/occupancy";
 import { Player } from "../../game/entities/Player";
 import { generateLevel } from "../../game/maze/level";
-import { hasLineOfSight } from "../../game/maze/lineOfSight";
+import { hasLineOfSight, raycastDistance } from "../../game/maze/lineOfSight";
 import { isTilePassable } from "../../game/maze/passability";
 import { pickRandomCells } from "../../game/maze/placement";
 import { Rng } from "../../game/maze/rng";
@@ -305,11 +305,14 @@ export class GameScene extends Phaser.Scene {
     const targets = weapon?.stats.ranged ? (nearest ? [nearest] : []) : candidates;
 
     if (weapon?.stats.ranged) {
-      // Fires all the way to whatever it hit, or out to the weapon's full range along the
-      // facing direction if nothing was there - a bow shouldn't visibly stop short of a miss.
+      // Fires all the way to whatever it hit, or out to the weapon's full range along the facing
+      // direction if nothing was there - but no further than the nearest wall in that direction
+      // (raycastDistance), so a miss's projectile visibly stops at the wall it would actually hit
+      // instead of flying straight through it out to the weapon's raw range.
+      const missDistance = raycastDistance(this.mazeGrid!, playerSprite.x, playerSprite.y, playerSprite.facing.x, playerSprite.facing.y, range);
       const dest = nearest
         ? { x: nearest.x, y: nearest.y }
-        : { x: playerSprite.x + playerSprite.facing.x * range, y: playerSprite.y + playerSprite.facing.y * range };
+        : { x: playerSprite.x + playerSprite.facing.x * missDistance, y: playerSprite.y + playerSprite.facing.y * missDistance };
       spawnProjectile(this, playerSprite.x, playerSprite.y, dest, weapon.stats.art);
     } else {
       spawnAttackSwipe(this, playerSprite.x, playerSprite.y, playerSprite.facing, weapon?.stats.art);

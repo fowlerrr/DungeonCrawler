@@ -20,7 +20,7 @@ import { findBlockingDoorAt, type BlockingDoor } from "../game/entities/doors";
 import { isTileOccupiedByMonster } from "../game/entities/occupancy";
 import { Player } from "../game/entities/Player";
 import { generateLevel } from "../game/maze/level";
-import { hasLineOfSight } from "../game/maze/lineOfSight";
+import { hasLineOfSight, raycastDistance } from "../game/maze/lineOfSight";
 import { isTilePassable as checkTilePassable } from "../game/maze/passability";
 import { pickRandomCells } from "../game/maze/placement";
 import { Rng } from "../game/maze/rng";
@@ -634,9 +634,14 @@ export class Game3D {
     const targets = weapon?.stats.ranged ? (nearest ? [nearest] : []) : candidates;
 
     if (weapon?.stats.ranged) {
+      // No further than the nearest wall in the facing direction (raycastDistance) on a miss, so
+      // the projectile visibly stops at the wall it would actually hit instead of flying through
+      // it out to the weapon's raw range - see GameScene's tryPlayerAttack for the 2D version of
+      // this same fix.
+      const missDistance = raycastDistance(this.mazeGrid, this.player.x, this.player.y, this.player.facing.x, this.player.facing.y, range);
       const dest = nearest
         ? { x: nearest.x, y: nearest.y }
-        : { x: this.player.x + this.player.facing.x * range, y: this.player.y + this.player.facing.y * range };
+        : { x: this.player.x + this.player.facing.x * missDistance, y: this.player.y + this.player.facing.y * missDistance };
       this.attackVisuals.spawnProjectile({ x: this.player.x, y: this.player.y }, dest, weapon.stats.art);
     } else {
       this.attackVisuals.spawnSwipe({ x: this.player.x, y: this.player.y }, this.player.facing, weapon?.stats.art);
