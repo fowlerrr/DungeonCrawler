@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, MAZE_VIEW_WIDTH, SCENE_KEYS, SIDEBAR_WIDTH } from "../../config/constants";
+import { IS_TOUCH_DEVICE } from "../../config/device";
 import { getRarityConfig } from "../../game/data/rarity";
 import type { EquipmentSlot, ItemDef } from "../../game/data/types";
 import type { KeyLabel } from "../../game/systems/Keyring";
@@ -8,18 +9,32 @@ import { InventoryPanel } from "../objects/InventoryPanel";
 import { MinimapRenderer } from "../render/MinimapRenderer";
 import type { GameScene } from "./GameScene";
 
-const PANEL_MARGIN = 12;
+// The touch design resolution (see constants.ts) is much shorter than desktop's (GAME_HEIGHT 380
+// vs 600), so every vertical offset below is tightened to match rather than just inheriting the
+// desktop numbers and overflowing off the bottom of a mobile canvas. MINIMAP_RESERVED_HEIGHT in
+// particular is sized for the largest maze LevelConfig ever generates (30x24 at
+// MinimapRenderer's 4px/tile cap = 120x96px), not a hardcoded guess.
+const PANEL_MARGIN = IS_TOUCH_DEVICE ? 8 : 12;
 const HUD_Y = PANEL_MARGIN;
-const MINIMAP_Y = 92; // clears hpText's 5 lines now that it includes an ATK/DEF row
-const MINIMAP_RESERVED_HEIGHT = 210;
+const MINIMAP_Y = IS_TOUCH_DEVICE ? 84 : 92; // clears hpText's 5 lines now that it includes an ATK/DEF row
+const MINIMAP_RESERVED_HEIGHT = IS_TOUCH_DEVICE ? 115 : 210;
 const EQUIP_Y = MINIMAP_Y + MINIMAP_RESERVED_HEIGHT;
-const EQUIP_LINE_HEIGHT = 17;
+const EQUIP_LINE_HEIGHT = IS_TOUCH_DEVICE ? 14 : 17;
 const UNEQUIPPED_COLOR = "#5a5a68";
-const KEYS_LABEL_Y = EQUIP_Y + 52;
-const KEYS_ROW_Y = EQUIP_Y + 68;
+const KEYS_LABEL_Y = EQUIP_Y + (IS_TOUCH_DEVICE ? 36 : 52);
+const KEYS_ROW_Y = EQUIP_Y + (IS_TOUCH_DEVICE ? 48 : 68);
 const KEYS_PER_ROW = 4;
-const KEY_COLUMN_WIDTH = 47;
-const KEY_ROW_HEIGHT = 18;
+const KEY_COLUMN_WIDTH = IS_TOUCH_DEVICE ? 42 : 47;
+const KEY_ROW_HEIGHT = IS_TOUCH_DEVICE ? 15 : 18;
+const CONTROLS_HINT_Y_OFFSET = 128; // desktop-only - see the "I: equipment" hint's own comment below
+// [ Equip ] is a visible open trigger alongside the "I" key - the only trigger at all on touch,
+// which has no physical I key. Shown on both platforms rather than only touch, same reasoning as
+// [ Menu ] already coexisting with ESC: a visible, clickable affordance is good UX regardless of
+// input method, not just a mobile-only necessity.
+const EQUIP_BUTTON_Y_OFFSET = IS_TOUCH_DEVICE ? 100 : 148;
+const MENU_BUTTON_Y_OFFSET = IS_TOUCH_DEVICE ? 122 : 170;
+const MAIN_FONT_SIZE = IS_TOUCH_DEVICE ? "12px" : "13px";
+const SMALL_FONT_SIZE = IS_TOUCH_DEVICE ? "11px" : "12px";
 
 const KEY_COLOR_HEX: Record<KeyLabel, string> = {
   red: "#ff5555",
@@ -67,7 +82,7 @@ export class UIScene extends Phaser.Scene {
 
     const textStyle: Phaser.Types.GameObjects.Text.TextStyle = {
       fontFamily: "monospace",
-      fontSize: "13px",
+      fontSize: MAIN_FONT_SIZE,
       color: "#ffffff",
       wordWrap: { width: contentWidth },
     };
@@ -82,13 +97,28 @@ export class UIScene extends Phaser.Scene {
     this.add.text(contentX, KEYS_LABEL_Y, "Keys:", { ...textStyle, color: "#9a9aa5" }).setScrollFactor(0).setDepth(200);
     this.keysContainer = this.add.container(contentX, KEYS_ROW_Y).setScrollFactor(0).setDepth(200);
 
-    this.add
-      .text(contentX, EQUIP_Y + 128, "I: equipment   ESC: menu", { ...textStyle, color: "#9a9aa5" })
+    // Neither shortcut applies on touch (no physical I/ESC key) - [ Menu ] below is the
+    // touch-friendly way to reach the same things on any device, so this line is skipped
+    // entirely on mobile rather than just rendered smaller, freeing up the space it would have
+    // used in an already-tight vertical budget (see the constants above).
+    if (!IS_TOUCH_DEVICE) {
+      this.add
+        .text(contentX, EQUIP_Y + CONTROLS_HINT_Y_OFFSET, "I: equipment   ESC: menu", { ...textStyle, color: "#9a9aa5" })
+        .setScrollFactor(0)
+        .setDepth(200);
+    }
+
+    const equipButton = this.add
+      .text(contentX, EQUIP_Y + EQUIP_BUTTON_Y_OFFSET, "[ Equip ]", { ...textStyle, color: "#4ea8ff" })
       .setScrollFactor(0)
-      .setDepth(200);
+      .setDepth(200)
+      .setInteractive({ useHandCursor: true });
+    equipButton.on("pointerover", () => equipButton.setColor("#ffffff"));
+    equipButton.on("pointerout", () => equipButton.setColor("#4ea8ff"));
+    equipButton.on("pointerdown", () => this.toggleInventoryPanel());
 
     const menuButton = this.add
-      .text(contentX, EQUIP_Y + 148, "[ Menu ]", { ...textStyle, color: "#4ea8ff" })
+      .text(contentX, EQUIP_Y + MENU_BUTTON_Y_OFFSET, "[ Menu ]", { ...textStyle, color: "#4ea8ff" })
       .setScrollFactor(0)
       .setDepth(200)
       .setInteractive({ useHandCursor: true });
@@ -96,7 +126,13 @@ export class UIScene extends Phaser.Scene {
     menuButton.on("pointerout", () => menuButton.setColor("#4ea8ff"));
     menuButton.on("pointerdown", () => (this.scene.get(SCENE_KEYS.GAME) as GameScene).openPauseMenu());
 
-    this.inventoryPanel = new InventoryPanel(this, GAME_WIDTH / 2, GAME_HEIGHT / 2, (item) => this.handleEquip(item));
+    this.inventoryPanel = new InventoryPanel(
+      this,
+      GAME_WIDTH / 2,
+      GAME_HEIGHT / 2,
+      (item) => this.handleEquip(item),
+      () => this.toggleInventoryPanel(),
+    );
     this.input.keyboard?.on("keydown-I", () => this.toggleInventoryPanel());
   }
 
@@ -142,7 +178,7 @@ export class UIScene extends Phaser.Scene {
     this.keysContainer.removeAll(true);
     if (labels.length === 0) {
       this.keysContainer.add(
-        this.add.text(0, 0, "none", { fontFamily: "monospace", fontSize: "12px", color: "#5a5a68" }),
+        this.add.text(0, 0, "none", { fontFamily: "monospace", fontSize: SMALL_FONT_SIZE, color: "#5a5a68" }),
       );
       return;
     }
@@ -152,7 +188,7 @@ export class UIScene extends Phaser.Scene {
       const row = Math.floor(i / KEYS_PER_ROW);
       const text = this.add.text(col * KEY_COLUMN_WIDTH, row * KEY_ROW_HEIGHT, label, {
         fontFamily: "monospace",
-        fontSize: "12px",
+        fontSize: SMALL_FONT_SIZE,
         color: KEY_COLOR_HEX[label],
       });
       this.keysContainer.add(text);

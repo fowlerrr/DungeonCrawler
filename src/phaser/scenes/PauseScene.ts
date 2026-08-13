@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from "../../config/constants";
+import { IS_TOUCH_DEVICE } from "../../config/device";
 import {
   bonusesFromAllocation,
   totalAtk,
@@ -11,9 +12,13 @@ import {
 import type { GameScene } from "./GameScene";
 
 const PANEL_WIDTH = 380;
-const PANEL_TOP = GAME_HEIGHT / 2 - 210;
-const PANEL_HEIGHT = 420;
-const ROW_HEIGHT = 26;
+// PANEL_HEIGHT (420) alone would already exceed the touch design resolution's GAME_HEIGHT (380,
+// see constants.ts) - these are tightened to fit within it with room to spare, rather than
+// inheriting the desktop numbers and pushing the bottom row of buttons off-canvas.
+const PANEL_HEIGHT = IS_TOUCH_DEVICE ? 300 : 420;
+const PANEL_TOP = GAME_HEIGHT / 2 - PANEL_HEIGHT / 2;
+const ROW_HEIGHT = IS_TOUCH_DEVICE ? 22 : 26;
+const MENU_BUTTON_SPACING = IS_TOUCH_DEVICE ? 26 : 32;
 
 /**
  * Reached via ESC (or the sidebar's Menu button) - pauses GameScene and shows totals for ATK/DEF
@@ -59,10 +64,10 @@ export class PauseScene extends Phaser.Scene {
 
     const rowStyle: Phaser.Types.GameObjects.Text.TextStyle = { fontFamily: "monospace", fontSize: "15px", color: "#ffffff" };
     const rowX = left + 24;
-    let rowY = PANEL_TOP + 70;
+    let rowY = PANEL_TOP + (IS_TOUCH_DEVICE ? 50 : 70);
 
     this.add.text(rowX, rowY, "Stats", { fontFamily: "monospace", fontSize: "13px", color: "#9a9aa5" });
-    rowY += 22;
+    rowY += IS_TOUCH_DEVICE ? 18 : 22;
 
     this.atkText = this.add.text(rowX, rowY, "", rowStyle);
     this.statButtons.push(this.addStatButton(left + PANEL_WIDTH - 24, rowY, () => this.spend("atk")));
@@ -74,16 +79,16 @@ export class PauseScene extends Phaser.Scene {
 
     this.hpText = this.add.text(rowX, rowY, "", rowStyle);
     this.statButtons.push(this.addStatButton(left + PANEL_WIDTH - 24, rowY, () => this.spend("hp")));
-    rowY += ROW_HEIGHT + 6;
+    rowY += ROW_HEIGHT + (IS_TOUCH_DEVICE ? 4 : 6);
 
     this.pointsText = this.add.text(rowX, rowY, "", { fontFamily: "monospace", fontSize: "13px", color: "#9a9aa5" });
 
     this.refresh();
 
-    const buttonY = PANEL_TOP + PANEL_HEIGHT - 76;
+    const buttonY = PANEL_TOP + PANEL_HEIGHT - (IS_TOUCH_DEVICE ? 70 : 76);
     this.addMenuButton(buttonY, "Resume", () => this.resume());
-    this.addMenuButton(buttonY + 32, "How to Play", () => this.scene.launch(SCENE_KEYS.TUTORIAL));
-    this.addMenuButton(buttonY + 64, "Quit to Menu", () => this.quitToMenu());
+    this.addMenuButton(buttonY + MENU_BUTTON_SPACING, "How to Play", () => this.scene.launch(SCENE_KEYS.TUTORIAL));
+    this.addMenuButton(buttonY + MENU_BUTTON_SPACING * 2, "Quit to Menu", () => this.quitToMenu());
 
     this.input.keyboard?.on("keydown-ESC", () => this.resume());
   }

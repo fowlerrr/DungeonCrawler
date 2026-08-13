@@ -1,15 +1,6 @@
 import type { Direction } from "../../game/util/direction";
 import type { InputController } from "./InputController";
 
-/** Whether this device is primarily touch-driven - used to decide whether to show the on-screen
- * d-pad at all, since it'd just be clutter over a mouse/keyboard desktop session. `pointer:
- * coarse` catches phones/tablets; `maxTouchPoints` is the fallback for browsers that don't
- * support the media query. Checked once at boot rather than live-updated, since a device doesn't
- * usually gain or lose a touchscreen mid-session. */
-export function isTouchDevice(): boolean {
-  return window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
-}
-
 const BUTTON_SIZE = 60;
 const DPAD_GAP = 4;
 

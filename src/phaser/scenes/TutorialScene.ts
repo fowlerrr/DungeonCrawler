@@ -1,33 +1,66 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from "../../config/constants";
+import { IS_TOUCH_DEVICE } from "../../config/device";
 
 const PANEL_MIN_WIDTH = 420;
 const TEXT_PADDING_X = 24;
-const TITLE_HEIGHT = 60;
-const BUTTON_AREA_HEIGHT = 60;
+// Tightened for touch: the desktop numbers (plus the desktop-length LINES below) would measure
+// out to a panel taller than the touch design resolution's entire GAME_HEIGHT (380, see
+// constants.ts) - there's no scrolling here, so anything past that would just render off the
+// bottom of the canvas, invisible rather than merely cramped.
+const TITLE_HEIGHT = IS_TOUCH_DEVICE ? 45 : 60;
+const BUTTON_AREA_HEIGHT = IS_TOUCH_DEVICE ? 45 : 60;
+const BODY_FONT_SIZE = IS_TOUCH_DEVICE ? "11px" : "13px";
+const BODY_LINE_SPACING = IS_TOUCH_DEVICE ? 3 : 6;
 
-const LINES = [
-  "Move: Arrow keys or WASD",
-  "Attack: Space (aims at your last move direction)",
-  "Equipment: I - pick a weapon, armor, and accessory",
-  "Pause / this menu: ESC",
-  "",
-  "Colored doors need their matching key, dropped somewhere",
-  "else on the level - step into a locked door while holding",
-  "its key to open it.",
-  "",
-  "Some locked doors guard a small vault with a bonus chest -",
-  "worth the detour for the better odds at rare loot.",
-  "",
-  "Defeat the boss guarding the exit for its key, then carry",
-  "it to the exit door to finish the level.",
-  "",
-  "Finishing a level earns one stat point - spend it on ATK,",
-  "DEF, or HP from the pause menu whenever you like.",
-  "",
-  "Dying sends you back to level 1 at full health, but your",
-  "gear, gold, and stat points are never lost.",
-];
+// Also swapped for touch rather than just shrunk: the desktop copy calls out physical keys
+// (Space/I/ESC/WASD) that don't exist on a touchscreen, and there's no touch equivalent for the
+// equipment panel yet, so that line is dropped entirely rather than describing a control that
+// doesn't work.
+const LINES = IS_TOUCH_DEVICE
+  ? [
+      "Move: on-screen d-pad (bottom-left)",
+      "Attack: on-screen sword button (bottom-right)",
+      "Pause / this menu: tap [ Menu ] in the sidebar",
+      "",
+      "Colored doors need their matching key, dropped somewhere",
+      "else on the level - walk into a locked door while holding",
+      "its key to open it.",
+      "",
+      "Some locked doors guard a small vault with a bonus chest -",
+      "worth the detour for the better odds at rare loot.",
+      "",
+      "Defeat the boss guarding the exit for its key, then carry",
+      "it to the exit door to finish the level.",
+      "",
+      "Finishing a level earns one stat point - spend it on ATK,",
+      "DEF, or HP from the pause menu whenever you like.",
+      "",
+      "Dying sends you back to level 1 at full health, but your",
+      "gear, gold, and stat points are never lost.",
+    ]
+  : [
+      "Move: Arrow keys or WASD",
+      "Attack: Space (aims at your last move direction)",
+      "Equipment: I - pick a weapon, armor, and accessory",
+      "Pause / this menu: ESC",
+      "",
+      "Colored doors need their matching key, dropped somewhere",
+      "else on the level - step into a locked door while holding",
+      "its key to open it.",
+      "",
+      "Some locked doors guard a small vault with a bonus chest -",
+      "worth the detour for the better odds at rare loot.",
+      "",
+      "Defeat the boss guarding the exit for its key, then carry",
+      "it to the exit door to finish the level.",
+      "",
+      "Finishing a level earns one stat point - spend it on ATK,",
+      "DEF, or HP from the pause menu whenever you like.",
+      "",
+      "Dying sends you back to level 1 at full health, but your",
+      "gear, gold, and stat points are never lost.",
+    ];
 
 /**
  * A launched (not started) overlay - stacks on top of whatever's already showing (MenuScene or
@@ -52,9 +85,9 @@ export class TutorialScene extends Phaser.Scene {
     // synchronously right after construction, no need to wait a frame.
     const bodyText = this.add.text(0, 0, LINES.join("\n"), {
       fontFamily: "monospace",
-      fontSize: "13px",
+      fontSize: BODY_FONT_SIZE,
       color: "#d0d0da",
-      lineSpacing: 6,
+      lineSpacing: BODY_LINE_SPACING,
     });
 
     const panelWidth = Math.max(PANEL_MIN_WIDTH, bodyText.width + TEXT_PADDING_X * 2);

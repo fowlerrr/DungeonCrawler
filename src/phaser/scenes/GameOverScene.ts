@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from "../../config/constants";
+import { IS_TOUCH_DEVICE } from "../../config/device";
 import type { GameScene } from "./GameScene";
 
 interface GameOverData {
@@ -14,9 +15,14 @@ export class GameOverScene extends Phaser.Scene {
     super(SCENE_KEYS.GAME_OVER);
   }
 
-  /** Draws the death panel and wires SPACE to resume GameScene and restart the run. */
+  /** Draws the death panel and wires SPACE (or a tap, on touch devices - see the module doc)
+   * to resume GameScene and restart the run. */
   create(data: GameOverData): void {
-    this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.75);
+    // Interactive, not just a dim visual - the whole backdrop doubles as a big, easy tap target
+    // on touch devices, since there's no SPACE key to fall back on there.
+    const backdrop = this.add
+      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.75)
+      .setInteractive();
 
     const panelWidth = 400;
     const panelHeight = 130;
@@ -34,19 +40,22 @@ export class GameOverScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 24, "Press SPACE to try again", {
+      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 24, IS_TOUCH_DEVICE ? "Tap to try again" : "Press SPACE to try again", {
         fontFamily: "monospace",
         fontSize: "16px",
         color: "#ffffff",
       })
       .setOrigin(0.5);
 
-    const spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    spaceKey.once("down", () => {
+    const restart = () => {
       const gameScene = this.scene.get(SCENE_KEYS.GAME) as GameScene;
       this.scene.stop();
       this.scene.resume(SCENE_KEYS.GAME);
       gameScene.restartAfterDeath();
-    });
+    };
+
+    const spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    spaceKey.once("down", restart);
+    backdrop.once("pointerdown", restart);
   }
 }

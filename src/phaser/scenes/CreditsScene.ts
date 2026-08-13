@@ -1,10 +1,17 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from "../../config/constants";
+import { IS_TOUCH_DEVICE } from "../../config/device";
 
 const PANEL_MIN_WIDTH = 420;
 const TEXT_PADDING_X = 24;
-const TITLE_HEIGHT = 60;
-const BUTTON_AREA_HEIGHT = 60;
+// Content here is short enough to fit the touch design resolution's shorter GAME_HEIGHT (380,
+// see constants.ts) even at desktop sizing, but tightened anyway to match TutorialScene's
+// treatment - the two overlays sit right next to each other in the menu, so a size mismatch
+// between them would look like an oversight rather than a choice.
+const TITLE_HEIGHT = IS_TOUCH_DEVICE ? 45 : 60;
+const BUTTON_AREA_HEIGHT = IS_TOUCH_DEVICE ? 45 : 60;
+const BODY_FONT_SIZE = IS_TOUCH_DEVICE ? "11px" : "13px";
+const BODY_LINE_SPACING = IS_TOUCH_DEVICE ? 3 : 6;
 
 const LINES = [
   "Dungeon tiles & door",
@@ -36,9 +43,9 @@ export class CreditsScene extends Phaser.Scene {
 
     const bodyText = this.add.text(0, 0, LINES.join("\n"), {
       fontFamily: "monospace",
-      fontSize: "13px",
+      fontSize: BODY_FONT_SIZE,
       color: "#d0d0da",
-      lineSpacing: 6,
+      lineSpacing: BODY_LINE_SPACING,
     });
 
     const panelWidth = Math.max(PANEL_MIN_WIDTH, bodyText.width + TEXT_PADDING_X * 2);

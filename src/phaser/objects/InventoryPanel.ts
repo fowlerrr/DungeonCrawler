@@ -1,17 +1,25 @@
 import Phaser from "phaser";
+import { IS_TOUCH_DEVICE } from "../../config/device";
 import { getRarityConfig, RARITY_TIERS } from "../../game/data/rarity";
 import type { EquipmentSlot, ItemDef, ItemStats } from "../../game/data/types";
 
 const RARITY_ORDER = new Map(RARITY_TIERS.map((tier, index) => [tier.tier, index]));
 
-const COLUMN_WIDTH = 260;
-const COLUMN_GAP = 20;
+// At the desktop sizing, this 3-column layout is 852px wide - already wider than the touch
+// design resolution's entire GAME_WIDTH (670, see constants.ts), let alone leaving any margin.
+// Shrinking column width/gaps/padding (and the font + truncate length so text still roughly
+// fits its narrower column) keeps the same 3-column layout rather than redesigning the
+// interaction model, just resized to actually fit the canvas it has to render inside.
+const COLUMN_WIDTH = IS_TOUCH_DEVICE ? 205 : 260;
+const COLUMN_GAP = IS_TOUCH_DEVICE ? 10 : 20;
 const ROW_HEIGHT = 22;
 const VISIBLE_ROWS = 7;
 const HEADER_HEIGHT = 20;
 const ARROW_HEIGHT = 16;
 const TITLE_HEIGHT = 36;
-const PANEL_PADDING = 16;
+const PANEL_PADDING = IS_TOUCH_DEVICE ? 10 : 16;
+const ROW_FONT_SIZE = IS_TOUCH_DEVICE ? "11px" : "12px";
+const ROW_TRUNCATE_CHARS = IS_TOUCH_DEVICE ? 27 : 34;
 
 const SLOT_ORDER: EquipmentSlot[] = ["weapon", "armor", "accessory"];
 const SLOT_LABELS: Record<EquipmentSlot, string> = { weapon: "Weapon", armor: "Armor", accessory: "Accessory" };
@@ -24,12 +32,15 @@ const PANEL_HEIGHT = TITLE_HEIGHT + PANEL_PADDING * 2 + COLUMN_CONTENT_HEIGHT;
  * rarity, with the equipped item in each slot marked - click a row to equip it. Each column
  * scrolls independently (mouse wheel over it, or its ▲/▼ buttons) once it has more than
  * VISIBLE_ROWS items. Toggled by UIScene, which also owns pausing GameScene while this is open;
- * this class only renders and reports clicks via onSelect. */
+ * this class only renders and reports clicks via onSelect. Closable by the "I" key (UIScene),
+ * the ✕ button, or tapping the backdrop - the first is desktop-only, so the other two exist
+ * specifically so a touch device (no physical I key) always has a way out. */
 export class InventoryPanel {
   private readonly scene: Phaser.Scene;
   private readonly centerX: number;
   private readonly centerY: number;
   private readonly onSelect: (item: ItemDef) => void;
+  private readonly onClose: () => void;
   private backdrop: Phaser.GameObjects.Rectangle;
   private container: Phaser.GameObjects.Container;
   private open = false;
@@ -38,12 +49,28 @@ export class InventoryPanel {
   private lastEquipped: Partial<Record<EquipmentSlot, string>> = {};
   private scrollOffset: Record<EquipmentSlot, number> = { weapon: 0, armor: 0, accessory: 0 };
 
-  constructor(scene: Phaser.Scene, centerX: number, centerY: number, onSelect: (item: ItemDef) => void) {
+  constructor(scene: Phaser.Scene, centerX: number, centerY: number, onSelect: (item: ItemDef) => void, onClose: () => void) {
     this.scene = scene;
     this.centerX = centerX;
     this.centerY = centerY;
     this.onSelect = onSelect;
-    this.backdrop = scene.add.rectangle(centerX, centerY, 4000, 4000, 0x000000, 0.6).setDepth(300).setVisible(false);
+    this.onClose = onClose;
+    this.backdrop = scene.add
+      .rectangle(centerX, centerY, 4000, 4000, 0x000000, 0.6)
+      .setDepth(300)
+      .setVisible(false)
+      .setInteractive();
+    // Closes on a tap/click anywhere outside the panel itself. Checks pointer position against
+    // the panel's own bounds rather than relying on the row/arrow/close buttons stopping event
+    // propagation - Phaser doesn't do that automatically between overlapping interactive
+    // objects, so a click on a row would otherwise also reach this handler (sitting right
+    // beneath it) and close the panel in the same tap used to equip something.
+    this.backdrop.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      const left = this.centerX - PANEL_WIDTH / 2;
+      const top = this.centerY - PANEL_HEIGHT / 2;
+      const insidePanel = pointer.x >= left && pointer.x <= left + PANEL_WIDTH && pointer.y >= top && pointer.y <= top + PANEL_HEIGHT;
+      if (!insidePanel) this.onClose();
+    });
     this.container = scene.add.container(0, 0).setDepth(301).setVisible(false);
 
     scene.input.on("wheel", (pointer: Phaser.Input.Pointer, _objs: unknown[], _dx: number, deltaY: number) => {
@@ -127,12 +154,27 @@ export class InventoryPanel {
     bg.fillStyle(0x4ea8ff, 1);
     bg.fillRoundedRect(left, top, PANEL_WIDTH, 4, { tl: 10, tr: 10, bl: 0, br: 0 });
 
-    const title = this.scene.add.text(left + PANEL_PADDING, top + PANEL_PADDING, "Equipment  (I to close)", {
+    const title = this.scene.add.text(left + PANEL_PADDING, top + PANEL_PADDING, "Equipment", {
       fontFamily: "monospace",
       fontSize: "13px",
       color: "#ffffff",
     });
-    this.container.add([bg, title]);
+
+    // A visible close affordance rather than relying on the "I" key (desktop-only) or knowing
+    // to tap outside the panel - both of those still work, this is just the discoverable one.
+    const closeButton = this.scene.add
+      .text(left + PANEL_WIDTH - PANEL_PADDING, top + PANEL_PADDING, "✕", {
+        fontFamily: "monospace",
+        fontSize: "16px",
+        color: "#9a9aa5",
+      })
+      .setOrigin(1, 0)
+      .setInteractive({ useHandCursor: true });
+    closeButton.on("pointerover", () => closeButton.setColor("#ffffff"));
+    closeButton.on("pointerout", () => closeButton.setColor("#9a9aa5"));
+    closeButton.on("pointerdown", () => this.onClose());
+
+    this.container.add([bg, title, closeButton]);
 
     const contentTop = top + TITLE_HEIGHT;
     SLOT_ORDER.forEach((slot, index) => this.renderColumn(slot, this.columnLeft(index), contentTop));
@@ -163,9 +205,9 @@ export class InventoryPanel {
       for (const item of visible) {
         const marker = item.id === this.lastEquipped[slot] ? "> " : "  ";
         const row = this.scene.add
-          .text(left, rowY, truncate(`${marker}${item.name}${describeStats(item.stats)}`, 34), {
+          .text(left, rowY, truncate(`${marker}${item.name}${describeStats(item.stats)}`, ROW_TRUNCATE_CHARS), {
             fontFamily: "monospace",
-            fontSize: "12px",
+            fontSize: ROW_FONT_SIZE,
             color: getRarityConfig(item.rarity).color,
           })
           .setInteractive({ useHandCursor: true });

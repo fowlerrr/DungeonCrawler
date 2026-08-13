@@ -1,9 +1,20 @@
+import { IS_TOUCH_DEVICE } from "./device";
+
 export const TILE_SIZE = 32;
 
-export const MAZE_VIEW_WIDTH = 800;
-export const SIDEBAR_WIDTH = 220;
+// Touch devices get a design resolution close to an actual phone's landscape viewport, rather
+// than the desktop-sized one below. Phaser's Scale.FIT (see bootPhaser.ts) scales this whole
+// resolution uniformly to fit whatever screen it's actually running on - if the design
+// resolution already roughly matches device size, that scaling stays close to 1:1 and text/tiles
+// render near their authored size. The alternative (one resolution for everyone, scaled down
+// harder on small screens) is what an earlier pass did, and shrank the map and HUD both down to
+// the point of being hard to read. Every other 2D scene's own spacing/panel-size constants are
+// separately adjusted for IS_TOUCH_DEVICE too (see their own comments) - a smaller canvas alone
+// doesn't reflow content sized for the taller/wider desktop one.
+export const MAZE_VIEW_WIDTH = IS_TOUCH_DEVICE ? 480 : 800;
+export const SIDEBAR_WIDTH = IS_TOUCH_DEVICE ? 190 : 220;
 export const GAME_WIDTH = MAZE_VIEW_WIDTH + SIDEBAR_WIDTH;
-export const GAME_HEIGHT = 600;
+export const GAME_HEIGHT = IS_TOUCH_DEVICE ? 380 : 600;
 
 export const VISION_RADIUS_TILES = 5;
 

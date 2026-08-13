@@ -1,11 +1,20 @@
 import Phaser from "phaser";
 import { GAME_HEIGHT, GAME_WIDTH, SCENE_KEYS } from "../../config/constants";
+import { IS_TOUCH_DEVICE } from "../../config/device";
 import { LocalStorageSaveManager } from "../../game/systems/SaveManager";
 
-const TITLE_Y = GAME_HEIGHT / 2 - 150;
-const BUTTON_START_Y = GAME_HEIGHT / 2 - 50;
-const BUTTON_SPACING = 46;
+// The touch design resolution's GAME_HEIGHT (380) is much shorter than desktop's (600, see
+// constants.ts) - these offsets/spacing are tightened to match rather than inheriting the
+// desktop numbers, which would push the last button (and the panel itself) below the bottom
+// edge of a mobile canvas entirely.
+const TITLE_Y = GAME_HEIGHT / 2 - (IS_TOUCH_DEVICE ? 130 : 150);
+const BUTTON_START_Y = GAME_HEIGHT / 2 - (IS_TOUCH_DEVICE ? 75 : 50);
+const BUTTON_SPACING = IS_TOUCH_DEVICE ? 32 : 46;
 const BUTTON_COUNT = 6;
+const PANEL_TOP_PADDING = IS_TOUCH_DEVICE ? 35 : 55;
+const PANEL_BOTTOM_PADDING = IS_TOUCH_DEVICE ? 35 : 55;
+const TITLE_FONT_SIZE = IS_TOUCH_DEVICE ? "26px" : "34px";
+const BUTTON_FONT_SIZE = IS_TOUCH_DEVICE ? "16px" : "20px";
 const TUTORIAL_SEEN_KEY = "dungeoncrawler:tutorialSeen";
 
 /** First scene the player actually sees, reached every time the page loads (PreloadScene starts
@@ -27,8 +36,8 @@ export class MenuScene extends Phaser.Scene {
     bg.fillCircle(GAME_WIDTH / 2, TITLE_Y + 20, 240);
 
     const panelWidth = 360;
-    const panelTop = TITLE_Y - 55;
-    const panelBottom = BUTTON_START_Y + BUTTON_SPACING * (BUTTON_COUNT - 1) + 55;
+    const panelTop = TITLE_Y - PANEL_TOP_PADDING;
+    const panelBottom = BUTTON_START_Y + BUTTON_SPACING * (BUTTON_COUNT - 1) + PANEL_BOTTOM_PADDING;
     const panel = this.add.graphics();
     panel.fillStyle(0x1a1a24, 0.92);
     panel.fillRoundedRect(GAME_WIDTH / 2 - panelWidth / 2, panelTop, panelWidth, panelBottom - panelTop, 14);
@@ -40,7 +49,7 @@ export class MenuScene extends Phaser.Scene {
     this.add
       .text(GAME_WIDTH / 2, TITLE_Y, "Dungeon Crawler", {
         fontFamily: "monospace",
-        fontSize: "34px",
+        fontSize: TITLE_FONT_SIZE,
         color: "#ffffff",
       })
       .setOrigin(0.5);
@@ -71,7 +80,7 @@ export class MenuScene extends Phaser.Scene {
     const text = this.add
       .text(GAME_WIDTH / 2, y, label, {
         fontFamily: "monospace",
-        fontSize: "20px",
+        fontSize: BUTTON_FONT_SIZE,
         color: enabled ? "#ffffff" : "#5a5a68",
       })
       .setOrigin(0.5);
