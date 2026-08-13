@@ -53,10 +53,12 @@ export class InventoryPanel {
     });
   }
 
+  /** Whether the panel is currently shown. */
   isOpen(): boolean {
     return this.open;
   }
 
+  /** Hides the panel without destroying it - show() reopens it later. */
   close(): void {
     this.open = false;
     this.backdrop.setVisible(false);
@@ -74,10 +76,13 @@ export class InventoryPanel {
     this.rebuild();
   }
 
+  /** X position of the left edge of the given column index (0 = weapon, 1 = armor, 2 = accessory). */
   private columnLeft(index: number): number {
     return this.centerX - PANEL_WIDTH / 2 + PANEL_PADDING + index * (COLUMN_WIDTH + COLUMN_GAP);
   }
 
+  /** Which slot's column, if any, contains this screen x - used to route mouse-wheel scrolling
+   * to the column the pointer is over. */
   private columnAt(pointerX: number): EquipmentSlot | undefined {
     const index = SLOT_ORDER.findIndex((_, i) => pointerX >= this.columnLeft(i) && pointerX <= this.columnLeft(i) + COLUMN_WIDTH);
     return index >= 0 ? SLOT_ORDER[index] : undefined;
@@ -95,6 +100,8 @@ export class InventoryPanel {
       });
   }
 
+  /** Moves a column's scroll offset by 3 rows in `direction`, clamped to the valid range, and
+   * redraws if it actually changed. */
   private scroll(slot: EquipmentSlot, direction: number): void {
     const maxOffset = Math.max(0, this.itemsBySlot(slot).length - VISIBLE_ROWS);
     const next = Phaser.Math.Clamp(this.scrollOffset[slot] + direction * 3, 0, maxOffset);
@@ -103,6 +110,9 @@ export class InventoryPanel {
     this.rebuild();
   }
 
+  /** Tears down and redraws the entire panel contents - simplest way to keep the three columns
+   * in sync with current scroll offsets and item lists, and cheap enough given how rarely this
+   * panel's contents change (only on open, scroll, or an item pickup/equip). */
   private rebuild(): void {
     this.container.removeAll(true);
 
@@ -128,6 +138,8 @@ export class InventoryPanel {
     SLOT_ORDER.forEach((slot, index) => this.renderColumn(slot, this.columnLeft(index), contentTop));
   }
 
+  /** Draws one slot's column: header, scroll arrows, and the current page of item rows
+   * (equipped item marked with a leading `>`), clicking a row equips it via onSelect. */
   private renderColumn(slot: EquipmentSlot, left: number, top: number): void {
     const items = this.itemsBySlot(slot);
     const maxOffset = Math.max(0, items.length - VISIBLE_ROWS);
@@ -167,6 +179,8 @@ export class InventoryPanel {
     this.container.add(this.arrowButton(left, downY, "▼", offset + VISIBLE_ROWS < items.length, () => this.scroll(slot, 1)));
   }
 
+  /** A ▲/▼ scroll button - only clickable (and full brightness) when `enabled`, so it's still
+   * visible but visually inert once a column is scrolled all the way in that direction. */
   private arrowButton(x: number, y: number, glyph: string, enabled: boolean, onClick: () => void): Phaser.GameObjects.Text {
     const text = this.scene.add.text(x, y, glyph, {
       fontFamily: "monospace",
@@ -181,6 +195,8 @@ export class InventoryPanel {
   }
 }
 
+/** Formats an item's notable stats (damage/cooldown/defense/speed) as a short trailing label,
+ * e.g. "  dmg 8  cd 400ms" - omits any stat the item doesn't have. */
 function describeStats(stats: ItemStats): string {
   const parts: string[] = [];
   if (stats.damage !== undefined) parts.push(`dmg ${stats.damage}`);
@@ -190,6 +206,8 @@ function describeStats(stats: ItemStats): string {
   return parts.length > 0 ? `  ${parts.join("  ")}` : "";
 }
 
+/** Cuts `text` to `maxChars`, ending with an ellipsis if it was cut, so a long item name plus
+ * stats string can't overflow its column. */
 function truncate(text: string, maxChars: number): string {
   return text.length > maxChars ? `${text.slice(0, maxChars - 1)}…` : text;
 }

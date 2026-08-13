@@ -1,5 +1,7 @@
 import Phaser from "phaser";
 
+/** A static world object that grants a random item roll (via LootTable) when the player opens
+ * it. */
 export class ChestSprite extends Phaser.Physics.Arcade.Sprite {
   /** Vault chests roll boosted loot odds (see LootTable's boostForVault) - the payoff for
    * finding the key to a locked-off room instead of a chest scattered on the open floor. */

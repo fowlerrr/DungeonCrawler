@@ -2,6 +2,10 @@ import { buildOpenAdjacency, edgeKey, type MazeGraph } from "./graph";
 import type { DoorInstance, KeyPlacement } from "./locks";
 import { cellKey, type Cell } from "./types";
 
+/** Turns a (cell, held keys) pair into a single string key, so the BFS below can track "have I
+ * already visited this cell with this exact set of keys" instead of just "have I visited this
+ * cell" - the same cell can be worth revisiting once you're holding a key you didn't have
+ * before, since that might open a previously-locked route. */
 function stateKey(cell: Cell, heldDoorIds: readonly string[]): string {
   return `${cellKey(cell)}|${[...heldDoorIds].sort().join(",")}`;
 }

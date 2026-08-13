@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { resolveDirection, type Direction } from "../../game/util/direction";
 
+/** Reads keyboard state into the game's discrete-direction movement model - arrow keys and WASD
+ * both map to the same four directions, and attack is a single held key. */
 export class InputController {
   private keys: Record<Direction, Phaser.Input.Keyboard.Key[]>;
   private attackKey: Phaser.Input.Keyboard.Key;
@@ -39,6 +41,7 @@ export class InputController {
     return resolveDirection(this.heldOrder, (dir) => this.keys[dir].some((k) => k.isDown));
   }
 
+  /** Whether the attack key is currently held. */
   isAttackDown(): boolean {
     return this.attackKey.isDown;
   }

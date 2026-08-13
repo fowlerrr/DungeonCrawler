@@ -21,15 +21,18 @@ export class InventoryPanel3D {
     this.onSelect = onSelect;
   }
 
+  /** Whether the panel is currently shown. */
   isOpen(): boolean {
     return this.modal !== null;
   }
 
+  /** Removes the modal from the DOM, if open. */
   close(): void {
     this.modal?.close();
     this.modal = null;
   }
 
+  /** Rebuilds and shows the modal with the given owned items and current equipped ids. */
   show(items: readonly ItemDef[], equipped: Partial<Record<EquipmentSlot, string>>): void {
     this.close();
     this.modal = createModal(this.root, COLUMN_WIDTH * 3 + 60, "Equipment  (I to close)");
@@ -41,6 +44,8 @@ export class InventoryPanel3D {
     this.modal.panel.appendChild(columns);
   }
 
+  /** Builds one slot's scrollable column: label, then every owned item in that slot (rarity
+   * first, then alphabetically), the equipped one marked with a leading `>`. */
   private renderColumn(slot: EquipmentSlot, items: readonly ItemDef[], equipped: Partial<Record<EquipmentSlot, string>>): HTMLDivElement {
     const column = el("div", { width: `${COLUMN_WIDTH}px` });
     column.appendChild(el("div", { color: THEME.dim, marginBottom: "6px" }, SLOT_LABELS[slot]));
@@ -88,6 +93,8 @@ export class InventoryPanel3D {
   }
 }
 
+/** Formats an item's notable stats as a short trailing label, e.g. "  dmg 8  cd 400ms" - omits
+ * any stat the item doesn't have. */
 function describeStats(stats: ItemStats): string {
   const parts: string[] = [];
   if (stats.damage !== undefined) parts.push(`dmg ${stats.damage}`);

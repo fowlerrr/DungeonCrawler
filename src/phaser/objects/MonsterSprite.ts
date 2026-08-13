@@ -8,6 +8,8 @@ const AGGRO_RANGE = 160;
 const HEALTH_BAR_WIDTH = 22;
 const HEALTH_BAR_HEIGHT = 4;
 const HEALTH_BAR_GAP_ABOVE_SPRITE = 8;
+const DEATH_FADE_MS = 280;
+const DEATH_SCALE_UP = 1.35;
 /** Target on-screen height for regular monsters vs the boss - collision stays a small fixed
  * circle regardless (see body.setCircle below), so this is purely a readability choice, not
  * tied to TILE_SIZE the way tile textures are. Applied to every monster texture uniformly, so
@@ -16,6 +18,9 @@ const HEALTH_BAR_GAP_ABOVE_SPRITE = 8;
 const MONSTER_HEIGHT = TILE_SIZE * 1.5;
 const BOSS_HEIGHT = TILE_SIZE * 2.2;
 
+/** The visual + physics half of a monster - wraps a plain-data Monster (logic) and owns
+ * everything Phaser-specific: sprite scaling, collision circle, wander/chase AI, hit flashes,
+ * and the floating health bar. */
 export class MonsterSprite extends Phaser.Physics.Arcade.Sprite {
   readonly logic: Monster;
   readonly def: MonsterDef;
@@ -145,9 +150,27 @@ export class MonsterSprite extends Phaser.Physics.Arcade.Sprite {
     this.healthBarFill.setVisible(show);
   }
 
+  /** Plays a brief flash-and-dissolve death animation (white flash into a scaled-up fade-out)
+   * instead of just vanishing, then cleans up the health bar UI alongside the sprite itself.
+   * Disables the physics body immediately so the fading corpse can't still be shoved around by
+   * the player/other monsters walking through it during the animation. */
   die(): void {
     this.healthBarBg.destroy();
     this.healthBarFill.destroy();
-    this.destroy();
+    (this.body as Phaser.Physics.Arcade.Body).enable = false;
+    this.setVelocity(0, 0);
+    this.setTintFill(0xffffff);
+
+    const fromScaleX = this.scaleX;
+    const fromScaleY = this.scaleY;
+    this.scene.tweens.add({
+      targets: this,
+      alpha: 0,
+      scaleX: fromScaleX * DEATH_SCALE_UP,
+      scaleY: fromScaleY * DEATH_SCALE_UP,
+      duration: DEATH_FADE_MS,
+      ease: Phaser.Math.Easing.Cubic.Out,
+      onComplete: () => this.destroy(),
+    });
   }
 }

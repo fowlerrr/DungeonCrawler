@@ -62,6 +62,8 @@ export class PlayerSprite extends Phaser.Physics.Arcade.Sprite {
     body.pushable = false;
   }
 
+  /** Whether a step tween is currently in flight - while true, new step attempts are ignored
+   * (see tryStep) so the player can't start a second step before finishing the current one. */
   get isMoving(): boolean {
     return this.moving;
   }

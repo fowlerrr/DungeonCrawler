@@ -68,10 +68,12 @@ export class PauseMenu3D {
     this.callbacks = callbacks;
   }
 
+  /** Whether the pause menu is currently shown. */
   isOpen(): boolean {
     return this.modal !== null;
   }
 
+  /** Builds and shows the pause panel: stat totals, spend buttons, and the action menu. */
   show(): void {
     this.close();
     this.modal = createModal(this.root, 380, "Paused");
@@ -108,6 +110,7 @@ export class PauseMenu3D {
     this.refresh();
   }
 
+  /** Redraws the ATK/DEF/HP totals and unspent-points count from current game state. */
   refresh(): void {
     if (!this.modal) return;
     const data = this.callbacks.getData();
@@ -122,6 +125,7 @@ export class PauseMenu3D {
     for (const btn of this.statButtons) btn.style.color = remaining > 0 ? THEME.accent : "#3a3a44";
   }
 
+  /** Removes the modal from the DOM, if open. */
   close(): void {
     this.modal?.close();
     this.modal = null;

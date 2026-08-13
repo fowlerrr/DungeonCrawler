@@ -128,10 +128,13 @@ export class MazeMesh {
     this.wallMesh.instanceMatrix.needsUpdate = true;
   }
 
+  /** Whether (tx, ty) is both inside the grid and visited - out-of-grid coordinates (checking a
+   * border wall's neighbor just past the edge) are never considered visited. */
   private tileVisited(fog: FogOfWar, tx: number, ty: number): boolean {
     return this.grid[ty]?.[tx] !== undefined && fog.isVisited(tx, ty);
   }
 
+  /** Frees the floor/wall geometries and materials, e.g. on leaving the level. */
   dispose(): void {
     this.floorMesh.geometry.dispose();
     this.wallMesh.geometry.dispose();

@@ -25,10 +25,12 @@ const STORAGE_KEY = "dungeoncrawler:save:v1";
 /** localStorage-backed implementation - swap for a real backend later behind the same
  * SaveManager interface without touching any game logic that depends on it. */
 export class LocalStorageSaveManager implements SaveManager {
+  /** Writes the profile to localStorage as JSON, overwriting any previous save. */
   save(profile: PlayerProfile): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
   }
 
+  /** Reads the saved profile back, or null if there isn't one (or it's corrupt JSON). */
   load(): PlayerProfile | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -39,11 +41,14 @@ export class LocalStorageSaveManager implements SaveManager {
     }
   }
 
+  /** Deletes the saved profile, e.g. for a full restart. */
   clear(): void {
     localStorage.removeItem(STORAGE_KEY);
   }
 }
 
+/** Looks up an item by its saved id against the current catalog - returns undefined rather than
+ * throwing, since a stale/removed id in an old save is expected, not a bug. */
 function resolveItemId(id: string): ItemDef | undefined {
   return ALL_ITEMS.find((item) => item.id === id);
 }

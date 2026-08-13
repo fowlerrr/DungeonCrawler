@@ -12,6 +12,8 @@ export const THEME = {
   faint: "#5a5a68",
 } as const;
 
+/** Creates an element with inline styles and optional text content in one call - avoids the
+ * usual createElement + assign-a-bunch-of-properties boilerplate repeated across every overlay. */
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   style: Partial<CSSStyleDeclaration> = {},
@@ -23,6 +25,8 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+/** A borderless text-styled button with the theme's hover-to-white behavior baked in - the DOM
+ * equivalent of the 2D game's pointerover/pointerout text-color pattern. */
 export function button(label: string, onClick: () => void, style: Partial<CSSStyleDeclaration> = {}): HTMLButtonElement {
   const b = el("button", {
     fontFamily: "monospace",

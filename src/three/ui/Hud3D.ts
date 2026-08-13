@@ -22,6 +22,12 @@ export const KEY_COLOR_HEX: Record<KeyLabel, string> = {
   exit: "#f5d76e",
 };
 
+export interface HudDoor {
+  tileX: number;
+  tileY: number;
+  color: string;
+}
+
 export interface HudState {
   levelNumber: number;
   highestLevelReached: number;
@@ -38,6 +44,7 @@ export interface HudState {
   fog: FogOfWar;
   playerTx: number;
   playerTy: number;
+  doors: readonly HudDoor[];
 }
 
 /** The always-on right-side sidebar, DOM equivalent of UIScene.ts - same information, same
@@ -108,6 +115,7 @@ export class Hud3D {
     parent.appendChild(this.root);
   }
 
+  /** Repaints every HUD element from the current game state - called once per frame. */
   update(state: HudState): void {
     this.statsText.textContent =
       `Level: ${state.levelNumber}\nHighest Level: ${state.highestLevelReached}\n` +
@@ -128,15 +136,19 @@ export class Hud3D {
       });
     }
 
-    this.redrawMinimap(state.grid, state.fog, state.playerTx, state.playerTy);
+    this.redrawMinimap(state.grid, state.fog, state.playerTx, state.playerTy, state.doors);
   }
 
+  /** Sets an equipment line's text and colors it by the item's rarity, or faint/"-" if empty. */
   private setEquipLine(node: HTMLDivElement, label: string, item: ItemDef | undefined): void {
     node.textContent = `${label}: ${item?.name ?? "-"}`;
     node.style.color = item ? getRarityConfig(item.rarity).color : THEME.faint;
   }
 
-  private redrawMinimap(grid: TileGrid, fog: FogOfWar, playerTx: number, playerTy: number): void {
+  /** Repaints the minimap canvas: every visited tile shaded by whether it's a wall, a colored dot
+   * for each still-locked door whose tile has been found, and the player's current tile marked
+   * with a bright white ring so it never blends into the rest of the palette. */
+  private redrawMinimap(grid: TileGrid, fog: FogOfWar, playerTx: number, playerTy: number, doors: readonly HudDoor[]): void {
     const maxWidth = SIDEBAR_WIDTH - 24;
     const tilePx = computeMinimapTileSize(grid[0].length, maxWidth, MAX_MINIMAP_TILE_PX);
     const w = grid[0].length * tilePx;
@@ -156,10 +168,29 @@ export class Hud3D {
       }
     }
 
-    ctx.fillStyle = THEME.accent;
-    ctx.fillRect(playerTx * tilePx, playerTy * tilePx, tilePx, tilePx);
+    for (const door of doors) {
+      if (!fog.isVisited(door.tileX, door.tileY)) continue;
+      ctx.fillStyle = KEY_COLOR_HEX[door.color as KeyLabel] ?? "#f5d76e";
+      ctx.fillRect(door.tileX * tilePx, door.tileY * tilePx, tilePx, tilePx);
+    }
+
+    // A plain same-size tile fill (the old approach) reads as just another floor tile at this
+    // scale - a white-cored dot stays visibly "the player" regardless of what color tile or door
+    // marker happens to be underneath it.
+    const playerCx = playerTx * tilePx + tilePx / 2;
+    const playerCy = playerTy * tilePx + tilePx / 2;
+    const playerRadius = tilePx * 0.9 + 1.5;
+    ctx.fillStyle = "#14141c";
+    ctx.beginPath();
+    ctx.arc(playerCx, playerCy, playerRadius + 1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(playerCx, playerCy, playerRadius, 0, Math.PI * 2);
+    ctx.fill();
   }
 
+  /** Removes the HUD from the DOM, e.g. on quitting to the menu. */
   dispose(): void {
     this.root.remove();
   }

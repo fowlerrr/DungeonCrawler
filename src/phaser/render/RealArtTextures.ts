@@ -25,6 +25,8 @@ const MONSTER_PACK = "assets/sprites/negative-monster-pack";
  * MonsterSprite/PlayerSprite), so there's no tiling requirement forcing it down, and letting it
  * render larger shows off far more of the linework than the tile grid's 32px budget ever could.
  */
+/** Queues every real-art source image (tiles, monsters, player) for loading, under `raw_`-
+ * prefixed keys so applyRealArt can process them before they replace any placeholder. */
 export function preloadRealArt(scene: Phaser.Scene): void {
   scene.load.image("raw_floor_open", `${TILES_MEDIUM}/Tile01_Floor.png`);
   scene.load.image("raw_floor_edge1", `${TILES_MEDIUM}/Tile03_Wall.png`);
@@ -40,6 +42,9 @@ export function preloadRealArt(scene: Phaser.Scene): void {
   scene.load.image("raw_player", `${MONSTER_PACK}/pirate_01.png`);
 }
 
+/** Turns the raw loaded images into the actual in-game texture keys - tiles get baked down to
+ * TILE_SIZE, monster/player art keeps native resolution, and the wall fill is sampled from the
+ * tileset itself. Must run after preloadRealArt's images have finished loading. */
 export function applyRealArt(scene: Phaser.Scene): void {
   bakeToTile(scene, "raw_floor_open", "tile_floor_open");
   bakeToTile(scene, "raw_floor_edge1", "tile_floor_edge1");

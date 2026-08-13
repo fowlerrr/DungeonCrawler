@@ -32,6 +32,7 @@ export class PauseScene extends Phaser.Scene {
     super(SCENE_KEYS.PAUSE);
   }
 
+  /** Builds the pause panel: stat totals, spend buttons, and the Resume/Tutorial/Quit menu. */
   create(): void {
     // This Scene instance is reused across repeated opens (Phaser calls create() again on the
     // same object rather than constructing a new one), but field initializers only run once -
@@ -87,6 +88,7 @@ export class PauseScene extends Phaser.Scene {
     this.input.keyboard?.on("keydown-ESC", () => this.resume());
   }
 
+  /** A small clickable "[ + ]" that runs `onClick` then refreshes the displayed totals. */
   private addStatButton(x: number, y: number, onClick: () => void): Phaser.GameObjects.Text {
     const button = this.add
       .text(x, y, "[ + ]", { fontFamily: "monospace", fontSize: "14px", color: "#4ea8ff" })
@@ -99,6 +101,7 @@ export class PauseScene extends Phaser.Scene {
     return button;
   }
 
+  /** A centered, hover-highlighted text button in the panel's bottom menu row. */
   private addMenuButton(y: number, label: string, onClick: () => void): void {
     const text = this.add
       .text(GAME_WIDTH / 2, y, label, { fontFamily: "monospace", fontSize: "16px", color: "#ffffff" })
@@ -109,14 +112,18 @@ export class PauseScene extends Phaser.Scene {
     text.on("pointerdown", onClick);
   }
 
+  /** Looks up the running GameScene instance - PauseScene never owns game state itself, only
+   * reads/mutates it through GameScene's public API. */
   private gameScene(): GameScene {
     return this.scene.get(SCENE_KEYS.GAME) as GameScene;
   }
 
+  /** Allocates one earned point to the given stat, if any are unspent. */
   private spend(stat: keyof StatAllocation): void {
     this.gameScene().allocateStatPoint(stat);
   }
 
+  /** Redraws the ATK/DEF/HP totals and unspent-points count from current game state. */
   private refresh(): void {
     const gameScene = this.gameScene();
     const allocation = gameScene.statAllocation;
@@ -137,11 +144,13 @@ export class PauseScene extends Phaser.Scene {
     }
   }
 
+  /** Closes the pause menu and lets GameScene keep running. */
   private resume(): void {
     this.scene.stop();
     this.scene.resume(SCENE_KEYS.GAME);
   }
 
+  /** Saves progress, tears down the run, and returns to the main menu. */
   private quitToMenu(): void {
     this.gameScene().persistNow();
     this.scene.stop(SCENE_KEYS.GAME);

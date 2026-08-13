@@ -10,6 +10,7 @@ export function isAutoEquipEnabled(): boolean {
   return localStorage.getItem(AUTO_EQUIP_KEY) !== "0";
 }
 
+/** Persists the auto-equip preference for future sessions. */
 export function setAutoEquipEnabled(enabled: boolean): void {
   localStorage.setItem(AUTO_EQUIP_KEY, enabled ? "1" : "0");
 }

@@ -12,6 +12,9 @@ export const RARITY_TIERS: RarityConfig[] = [
   { tier: "legendary", color: "#ffb347", statMultiplier: 2.2, baseDropWeight: 0.15 },
 ];
 
+/** Looks up a rarity tier's config by name - throws rather than returning undefined, since a
+ * missing tier here always means a typo/data bug, not a valid "not found" case callers should
+ * handle. */
 export function getRarityConfig(tier: RarityTier): RarityConfig {
   const config = RARITY_TIERS.find((r) => r.tier === tier);
   if (!config) throw new Error(`Unknown rarity tier: ${tier}`);

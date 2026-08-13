@@ -31,6 +31,8 @@ export class ToastLayer3D {
     root.appendChild(this.container);
   }
 
+  /** Adds a new toast that fades in, holds for TOAST_VISIBLE_MS, then fades out and removes
+   * itself. */
   show(text: string, color: string): void {
     const toast = el(
       "div",
@@ -62,6 +64,7 @@ export class ToastLayer3D {
     }, TOAST_VISIBLE_MS);
   }
 
+  /** Removes the toast container from the DOM. */
   dispose(): void {
     this.container.remove();
   }

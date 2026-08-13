@@ -14,6 +14,8 @@ const AGGRO_RANGE = 160;
 const OCCUPANCY_RADIUS = TILE_SIZE * 0.35;
 const HEALTH_BAR_WIDTH = 0.5;
 const HEALTH_BAR_HEIGHT = 0.06;
+const DEATH_FADE_MS = 280;
+const DEATH_SCALE_UP = 1.35;
 
 /** Continuous (not grid-locked) movement, unlike the player - wander/chase exactly mirrors
  * MonsterSprite.step's logic, but since there's no Arcade Physics here, wall/player collision is
@@ -34,6 +36,12 @@ export class MonsterController3D {
     return this.logic.y;
   }
 
+  /** Whether the death fade animation is currently playing - Game3D routes these to
+   * updateDeathFade instead of the normal step/collision handling while true. */
+  get isDying(): boolean {
+    return this.dying;
+  }
+
   private wanderDir = { x: 0, y: 0 };
   private wanderTimerMs = 0;
   private damaged = false;
@@ -43,6 +51,8 @@ export class MonsterController3D {
   private bodyMesh: THREE.Mesh;
   private bodyMaterial: THREE.MeshLambertMaterial;
   private flashUntilMs = 0;
+  private dying = false;
+  private deathElapsedMs = 0;
 
   constructor(x: number, y: number, def: MonsterDef, hpMult = 1, damageMult = 1, texture: THREE.Texture) {
     this.def = def;
@@ -119,6 +129,9 @@ export class MonsterController3D {
     this.syncMeshPosition();
   }
 
+  /** Shows/hides the monster (and its health bar) based on whether its tile is currently within
+   * the player's fog-of-war vision - mirrors MonsterSprite's reasoning for why this can't just
+   * rely on the fog overlay covering it. */
   setFogVisible(fog: FogOfWar): void {
     const { tx, ty } = pxToTile(this.logic.x, this.logic.y);
     this.fogVisible = fog.isVisible(tx, ty);
@@ -126,6 +139,8 @@ export class MonsterController3D {
     this.refreshBarVisibility();
   }
 
+  /** Called right after damage is applied - shows the bar (staying hidden at full health) and
+   * colors it green/yellow/red by remaining HP fraction. */
   updateHealthBar(): void {
     const fraction = this.logic.hp / this.logic.maxHp;
     this.damaged = fraction < 1;
@@ -138,6 +153,7 @@ export class MonsterController3D {
     (this.healthBarFill.material as THREE.MeshBasicMaterial).color.setHex(color);
   }
 
+  /** Starts a brief white emissive flash so a hit reads clearly - cleared later by updateFlash. */
   flashHit(nowMs: number): void {
     this.flashUntilMs = nowMs + 120;
     this.bodyMaterial.emissive.setHex(0xffffff);
@@ -152,17 +168,20 @@ export class MonsterController3D {
     }
   }
 
+  /** Shows the health bar only when both damaged and currently visible through the fog. */
   private refreshBarVisibility(): void {
     const show = this.fogVisible && this.damaged;
     this.healthBarBg.visible = show;
     this.healthBarFill.visible = show;
   }
 
+  /** Moves the mesh group to match the logic position. */
   private syncMeshPosition(): void {
     const { x, z } = pxToWorld(this.logic.x, this.logic.y);
     this.mesh.position.set(x, 0, z);
   }
 
+  /** Rotates the billboard planes (body + health bars) to face the camera. */
   faceCamera(cameraPos: THREE.Vector3): void {
     // The body plane and both health bar planes are all simple billboards - always face the
     // camera rather than being drawn once at a fixed rotation, so the flat art always reads as
@@ -172,7 +191,32 @@ export class MonsterController3D {
     this.healthBarFill.lookAt(cameraPos.x, this.healthBarFill.getWorldPosition(new THREE.Vector3()).y, cameraPos.z);
   }
 
+  /** Starts a brief flash-and-dissolve death animation (white emissive flash into a scaled-up
+   * fade-out) instead of just vanishing - actual disposal happens once it finishes, in
+   * updateDeathFade. The monster stays `active` for that brief window, but `logic.isDead` is
+   * already true by the time this is called, which already excludes it from targeting,
+   * occupancy, and stepping - only the visual cleanup is deferred. */
   die(): void {
+    this.dying = true;
+    this.deathElapsedMs = 0;
+    this.healthBarBg.visible = false;
+    this.healthBarFill.visible = false;
+    this.bodyMaterial.emissive.setHex(0xffffff);
+  }
+
+  /** Advances the death fade by one frame, disposing and removing the monster once it finishes -
+   * called by Game3D in place of step()/collision handling while isDying is true. */
+  updateDeathFade(deltaMs: number): void {
+    this.deathElapsedMs += deltaMs;
+    const t = Math.min(1, this.deathElapsedMs / DEATH_FADE_MS);
+    const scale = 1 + t * (DEATH_SCALE_UP - 1);
+    this.bodyMesh.scale.set(scale, scale, 1);
+    this.bodyMaterial.opacity = 1 - t;
+    if (t >= 1) this.finishDeath();
+  }
+
+  /** Marks the monster inactive and disposes its meshes/materials, removing it from the scene. */
+  private finishDeath(): void {
     this.active = false;
     this.bodyMesh.geometry.dispose();
     this.bodyMaterial.dispose();

@@ -12,6 +12,7 @@ export interface MazeGraph {
   edges: MazeEdge[];
 }
 
+/** Turns the two cells an edge connects into a single string key, for use as a Map/Set key. */
 export function edgeKey(a: Cell, b: Cell): string {
   // Canonical regardless of direction, so both traversal orders map to the same edge.
   const ak = cellKey(a);

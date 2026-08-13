@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import {
   BOSS_GOLD_DROP,
+  GAME_HEIGHT,
   HEALTH_PICKUP_HEAL,
   MAZE_VIEW_WIDTH,
   MONSTER_CONTACT_DAMAGE_COOLDOWN_MS,
@@ -11,6 +12,7 @@ import {
   PLAYER_ATTACK_RANGE,
   PLAYER_BASE_HP,
   SCENE_KEYS,
+  TILE_SIZE,
   VISION_RADIUS_TILES,
 } from "../../config/constants";
 import { ALL_ITEMS } from "../../game/data/items";
@@ -67,6 +69,10 @@ import { renderMaze } from "../render/MazeRenderer";
 
 const EXIT_KEY_ID = "exit";
 
+/** The main gameplay scene - owns the maze, player, monsters, loot, and level lifecycle for the
+ * 2D client. UIScene runs alongside it (reading this scene's public fields each frame) rather
+ * than being merged into it, so the always-on sidebar HUD can't be accidentally paused along
+ * with gameplay. */
 export class GameScene extends Phaser.Scene {
   // Read by UIScene each frame - deliberately public, this scene owns the data, UIScene just renders it.
   mazeGrid: TileGrid | undefined;
@@ -95,6 +101,11 @@ export class GameScene extends Phaser.Scene {
   private blockingDoors: DoorSprite[] = [];
   private healthPickupsGroup!: Phaser.Physics.Arcade.StaticGroup;
   private pendingLevelComplete = false;
+  /** A full-viewport red overlay, briefly flashed on taking damage (see flashDamage) - a sprite
+   * tint alone can be easy to miss since the player is a small icon that's often partly obscured
+   * by nearby monsters; a full-screen flash reads unmistakably regardless of where on screen the
+   * hit actually happened. */
+  private damageFlash!: Phaser.GameObjects.Rectangle;
 
   constructor() {
     super(SCENE_KEYS.GAME);
@@ -172,6 +183,8 @@ export class GameScene extends Phaser.Scene {
     this.persist();
   }
 
+  /** Runs every frame: handles a pending level transition, checks for player death, reads
+   * movement/attack input, and steps every monster. */
   update(_time: number, delta: number): void {
     if (this.pendingLevelComplete) {
       this.pendingLevelComplete = false;
@@ -206,6 +219,9 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Whether the player can step onto this tile: opens (and consumes the key for) a locked door
+   * they're holding the key to, then checks the tile itself is floor and not blocked by a still-
+   * locked door or another monster standing on it. */
   private isTilePassable(tx: number, ty: number): boolean {
     if (!this.mazeGrid) return false;
 
@@ -224,11 +240,16 @@ export class GameScene extends Phaser.Scene {
     return !isTileOccupiedByMonster(x, y, this.monsterSprites, MONSTER_OCCUPANCY_RADIUS);
   }
 
+  /** Called once the player finishes stepping onto a new tile - recomputes fog-of-war vision
+   * from their new position and repaints the fog overlay. */
   private onPlayerArriveTile(): void {
     this.fogOfWar!.update(this.playerSprite!.tileX, this.playerSprite!.tileY, VISION_RADIUS_TILES);
     this.fogRenderer.redraw(this.fogOfWar!);
   }
 
+  /** Attempts a player attack this frame: enforces the weapon's cooldown, finds valid targets
+   * (in range, in the facing cone, and with line of sight), plays the matching swing/projectile
+   * visual, and applies damage - killing a monster drops its gold and, for the boss, the exit key. */
   private tryPlayerAttack(): void {
     const playerSprite = this.playerSprite!;
     const player = playerSprite.logic;
@@ -288,6 +309,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Writes the current inventory/level/stat-allocation state to localStorage. */
   private persist(): void {
     this.saveManager.save(buildProfile(this.inventory, this.levelNumber, this.highestLevelReached, this.statAllocation));
   }
@@ -304,11 +326,20 @@ export class GameScene extends Phaser.Scene {
     return this.keyring.heldLabels();
   }
 
+  /** Every still-locked door, for the minimap - opened doors drop out automatically since
+   * `active` goes false the moment DoorSprite.open() destroys the sprite. */
+  activeLockedDoors(): { tileX: number; tileY: number; color: string }[] {
+    return this.blockingDoors.filter((door) => door.active).map((door) => ({ tileX: door.tileX, tileY: door.tileY, color: door.color }));
+  }
+
+  /** Drops a health pickup at a killed monster's position (see LevelConfig's healthDropChance). */
   private spawnHealthPickup(x: number, y: number): void {
     const pickup = new HealthPickupSprite(this, x, y, HEALTH_PICKUP_HEAL);
     this.healthPickupsGroup.add(pickup);
   }
 
+  /** Drops the exit key at the boss's death position, and wires it up so touching it adds the
+   * key to the keyring. */
   private spawnExitKey(x: number, y: number): void {
     const keySprite = new KeyPickupSprite(this, x, y, EXIT_KEY_ID, "exit", "key_exit");
     this.physics.add.overlap(this.playerSprite!, keySprite, () => {
@@ -317,6 +348,8 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  /** Advances to the next level: bumps the level counter (and highestLevelReached), saves, and
+   * rebuilds the maze from a fresh seed. */
   private completeLevel(): void {
     this.levelNumber += 1;
     this.highestLevelReached = Math.max(this.highestLevelReached, this.levelNumber);
@@ -333,6 +366,11 @@ export class GameScene extends Phaser.Scene {
     this.buildLevel(Date.now());
   }
 
+  /** Tears down and rebuilds everything level-scoped from a seed: generates the maze, places the
+   * player/doors/keys/monsters/chests/exit, and wires up all the physics overlaps/colliders
+   * between them. Called for a brand new level, a death restart, and the debug "R" regenerate
+   * key - all of which need the exact same rebuild, just with a different seed and/or
+   * levelNumber already set beforehand. */
   private buildLevel(seed: number): void {
     this.children.removeAll(true);
     this.keyring = new Keyring();
@@ -365,7 +403,7 @@ export class GameScene extends Phaser.Scene {
     for (const door of level.doors) {
       const { tx, ty } = edgeConnectorTile(door.a, door.b);
       const { x, y } = tileCenterPx(tx, ty);
-      const doorSprite = new DoorSprite(this, x, y, tx, ty, door.id, `door_${door.color}`);
+      const doorSprite = new DoorSprite(this, x, y, tx, ty, door.id, door.color, `door_${door.color}`);
       doorsGroup.add(doorSprite);
       this.blockingDoors.push(doorSprite);
     }
@@ -428,6 +466,7 @@ export class GameScene extends Phaser.Scene {
       player.lastHitAt = this.time.now;
       const defense = totalDef(this.inventory.equipped.armor?.stats.defense, this.inventory.equipped.accessory?.stats.defense, this.statAllocation);
       applyDamage(player, mitigateDamage(monster.logic.damage, defense));
+      this.flashDamage();
     });
     // The player's body is non-pushable (see PlayerSprite), so this collider stops monsters
     // from walking onto/through the player without ever displacing the player themselves.
@@ -474,7 +513,7 @@ export class GameScene extends Phaser.Scene {
     // instant it's picked up instead of requiring an actual walk to the door.
     const exitSpawn = cellCenterPx(level.exit);
     const exitTile = cellToTile(level.exit);
-    const exitDoor = new DoorSprite(this, exitSpawn.x, exitSpawn.y, exitTile.tx, exitTile.ty, EXIT_KEY_ID, "door_exit");
+    const exitDoor = new DoorSprite(this, exitSpawn.x, exitSpawn.y, exitTile.tx, exitTile.ty, EXIT_KEY_ID, "exit", "door_exit");
     this.physics.add.collider(monsterGroup, exitDoor);
     this.physics.add.overlap(this.playerSprite, exitDoor, () => {
       if (this.keyring.has(EXIT_KEY_ID)) {
@@ -483,8 +522,51 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    // A plain colored door reads as just another lock door at a glance (worse still once real
+    // art is loaded, since every door - lock or exit - uses the same door image). A floating,
+    // gently pulsing label is the clearest way to make "this one's the exit" unmistakable
+    // without needing a whole separate art asset.
+    const exitLabel = this.add
+      .text(exitSpawn.x, exitSpawn.y - TILE_SIZE * 0.85, "EXIT", {
+        fontFamily: "monospace",
+        fontSize: "12px",
+        fontStyle: "bold",
+        color: "#f5d76e",
+        stroke: "#000000",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setDepth(90);
+    this.tweens.add({
+      targets: exitLabel,
+      alpha: { from: 1, to: 0.5 },
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: Phaser.Math.Easing.Sine.InOut,
+    });
+
     this.fogOfWar = new FogOfWar(level.grid[0].length, level.grid.length);
     this.fogRenderer = new FogOfWarRenderer(this);
+    this.damageFlash = this.add
+      .rectangle(0, 0, MAZE_VIEW_WIDTH, GAME_HEIGHT, 0xff2222, 0)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(150);
     this.onPlayerArriveTile();
+  }
+
+  /** Briefly tints the whole maze viewport red - called whenever the player takes damage.
+   * Restarts cleanly even if triggered again mid-flash (contact damage's own cooldown makes that
+   * unlikely, but killing any in-flight tween first avoids two competing alpha animations). */
+  private flashDamage(): void {
+    this.tweens.killTweensOf(this.damageFlash);
+    this.damageFlash.setAlpha(0.35);
+    this.tweens.add({
+      targets: this.damageFlash,
+      alpha: 0,
+      duration: 220,
+      ease: Phaser.Math.Easing.Cubic.Out,
+    });
   }
 }

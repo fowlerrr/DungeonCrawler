@@ -16,6 +16,8 @@ export class MenuScene extends Phaser.Scene {
     super(SCENE_KEYS.MENU);
   }
 
+  /** Builds the title panel and its New Game/Continue/How to Play/Options/3D buttons, and
+   * auto-launches the tutorial on a player's very first visit. */
   create(): void {
     const bg = this.add.graphics();
     bg.fillStyle(0x0d0d14, 1);
@@ -61,6 +63,8 @@ export class MenuScene extends Phaser.Scene {
     }
   }
 
+  /** A centered menu button - greyed out and non-interactive when `enabled` is false (used for
+   * Continue when there's no save to resume). */
   private addButton(y: number, label: string, onClick: () => void, enabled = true): void {
     const text = this.add
       .text(GAME_WIDTH / 2, y, label, {

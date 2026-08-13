@@ -4,6 +4,8 @@ import { MenuScreen3D } from "./MenuScreen3D";
 let game3D: Game3D | null = null;
 let menu3D: MenuScreen3D | null = null;
 
+/** Whether 3D mode currently owns the screen (menu or an in-progress game) - guards launch3D
+ * against being entered twice. */
 export function isThreeDActive(): boolean {
   return game3D !== null || menu3D !== null;
 }

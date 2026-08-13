@@ -17,6 +17,7 @@ const CARDINAL_ORDER: readonly Vec2[] = [
   { x: -1, y: 0 },
 ];
 
+/** Converts a cardinal direction vector to a Y-axis rotation angle in radians. */
 function angleFromFacing(facing: Vec2): number {
   return Math.atan2(facing.x, facing.y);
 }
@@ -28,6 +29,8 @@ function shortestAngleDelta(from: number, to: number): number {
   return Math.atan2(Math.sin(to - from), Math.cos(to - from));
 }
 
+/** Standard ease-out curve for `t` in [0, 1] - fast start, slow finish, used for the turn
+ * animation so a snap-turn settles smoothly rather than stopping abruptly. */
 function easeOutQuad(t: number): number {
   return 1 - (1 - t) * (1 - t);
 }
@@ -139,10 +142,12 @@ export class PlayerController3D {
     this.turning = true;
   }
 
+  /** Attempts to step one tile in the current facing direction. */
   tryStepForward(isPassable: (tx: number, ty: number) => boolean, speedMultiplier: number, onArrive?: () => void): void {
     this.tryStepInDirection(this.facing, isPassable, speedMultiplier, onArrive);
   }
 
+  /** Attempts to step one tile opposite the current facing direction, without turning to face it. */
   tryStepBackward(isPassable: (tx: number, ty: number) => boolean, speedMultiplier: number, onArrive?: () => void): void {
     this.tryStepInDirection({ x: -this.facing.x, y: -this.facing.y }, isPassable, speedMultiplier, onArrive);
   }
@@ -173,6 +178,8 @@ export class PlayerController3D {
     };
   }
 
+  /** Advances any in-flight step tween and turn animation by one frame, then syncs the mesh to
+   * the resulting position/rotation. */
   update(deltaMs: number): void {
     if (this.moving) {
       this.moveElapsedMs += deltaMs;
@@ -210,6 +217,7 @@ export class PlayerController3D {
     this.syncMeshToLogic();
   }
 
+  /** Moves the visible mesh to match the logic position and visual (eased) facing angle. */
   private syncMeshToLogic(): void {
     const { x, z } = pxToWorld(this.logic.x, this.logic.y);
     this.mesh.position.set(x, 0, z);

@@ -52,6 +52,7 @@ import { PlayerController3D } from "./entities/PlayerController3D";
 import { InputController3D } from "./input/InputController3D";
 import { MazeMesh } from "./MazeMesh";
 import { loadTextures3D, type Textures3D } from "./Textures3D";
+import { el } from "./ui/domHelpers";
 import { Hud3D, KEY_COLOR_HEX, SIDEBAR_WIDTH } from "./ui/Hud3D";
 import { InventoryPanel3D } from "./ui/InventoryPanel3D";
 import { PauseMenu3D, showGameOver3D, showOptions3D, showTutorial3D } from "./ui/Overlays3D";
@@ -63,7 +64,9 @@ const PLAYER_OCCUPANCY_RADIUS = TILE_SIZE * 0.35;
 const DOOR_OBSTACLE_RADIUS = TILE_SIZE * 0.5;
 const PICKUP_RADIUS = TILE_SIZE * 0.55;
 const PALETTE_HEALTH_HEX = `#${PALETTE.health.toString(16).padStart(6, "0")}`;
+const DAMAGE_FLASH_MS = 220;
 
+/** Uppercases the first letter, e.g. "red" -> "Red", for toast labels like "Red Key". */
 function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -120,6 +123,7 @@ export class Game3D {
   private readonly toasts: ToastLayer3D;
   private readonly inventoryPanel: InventoryPanel3D;
   private readonly pauseMenu: PauseMenu3D;
+  private readonly damageFlash: HTMLDivElement;
   private attackVisuals!: AttackVisuals3D;
   private textures: Textures3D | null = null;
 
@@ -145,6 +149,10 @@ export class Game3D {
   private paused = false;
   private pendingLevelComplete = false;
   private gameOverShown = false;
+  /** Elapsed time since the last flashDamage() call - Infinity means no flash is currently
+   * fading. Hand-rolled per-frame (like AttackVisuals3D/PlayerController3D's animations) rather
+   * than a CSS transition, so retriggering mid-fade restarts cleanly with no reflow hacks needed. */
+  private damageFlashElapsedMs = Infinity;
   private lastTimeMs = 0;
   private rafHandle = 0;
   private running = false;
@@ -174,6 +182,22 @@ export class Game3D {
     const ambient = new THREE.AmbientLight(PALETTE.ambient, 2.2);
     const hemi = new THREE.HemisphereLight(0x8899cc, 0x2a2a38, 1.2);
     this.scene.add(ambient, hemi);
+
+    // A full-viewport red overlay, briefly flashed on taking damage (see flashDamage) - excludes
+    // the sidebar (right: SIDEBAR_WIDTH) so it only tints the 3D view itself, matching the 2D
+    // game's damageFlash covering just the maze viewport.
+    this.damageFlash = el("div", {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      right: `${SIDEBAR_WIDTH}px`,
+      bottom: "0",
+      background: "#ff2222",
+      opacity: "0",
+      pointerEvents: "none",
+      zIndex: "40",
+    });
+    container.appendChild(this.damageFlash);
 
     this.hud = new Hud3D(container);
     this.hud.onOpenInventory = () => this.toggleInventoryPanel();
@@ -208,6 +232,7 @@ export class Game3D {
     window.addEventListener("resize", this.handleResize);
   }
 
+  /** Keeps the renderer/camera sized to the viewport minus the fixed-width sidebar HUD. */
   private handleResize = (): void => {
     const width = Math.max(1, window.innerWidth - SIDEBAR_WIDTH);
     const height = window.innerHeight;
@@ -249,6 +274,9 @@ export class Game3D {
     }
   }
 
+  /** Tears down and rebuilds everything level-scoped from a seed: generates the maze, places the
+   * player/doors/keys/monsters/chests/exit, same responsibilities as GameScene's buildLevel just
+   * building Three.js meshes instead of Phaser sprites. */
   private async buildLevel(seed: number): Promise<void> {
     this.textures ??= await loadTextures3D();
     const textures = this.textures;
@@ -388,12 +416,17 @@ export class Game3D {
 
   private chestRngRef!: Rng;
 
+  /** Called once the player finishes stepping onto a new tile - recomputes fog-of-war vision
+   * from their new position and reveals any newly-visited maze geometry. */
   private onPlayerArriveTile(): void {
     if (!this.player || !this.fogOfWar || !this.mazeMesh) return;
     this.fogOfWar.update(this.player.tileX, this.player.tileY, VISION_RADIUS_TILES_3D);
     this.mazeMesh.updateFog(this.fogOfWar);
   }
 
+  /** Whether the player can step onto this tile: opens (and consumes the key for) a locked door
+   * they're holding the key to, then checks the tile itself is floor and not blocked by a still-
+   * locked door or another monster standing on it. */
   private isTilePassable(tx: number, ty: number): boolean {
     if (!this.mazeGrid) return false;
     const blockingDoor = findBlockingDoorAt(this.doors, tx, ty);
@@ -407,11 +440,14 @@ export class Game3D {
     return !isTileOccupiedByMonster(x, y, this.monsters, MONSTER_OCCUPANCY_RADIUS);
   }
 
+  /** Removes an unlocked door's mesh from the scene, opening the passage. */
   private openDoor(door: Door3D): void {
     door.active = false;
     door.mesh.removeFromParent();
   }
 
+  /** The requestAnimationFrame loop: advances game state by the frame's delta, renders, and
+   * schedules the next frame. */
   private animate = (nowMs: number): void => {
     const deltaMs = Math.min(100, nowMs - this.lastTimeMs);
     this.lastTimeMs = nowMs;
@@ -420,6 +456,8 @@ export class Game3D {
     this.rafHandle = requestAnimationFrame(this.animate);
   };
 
+  /** Runs every frame: handles a pending level transition, checks for player death, reads
+   * movement/attack input, steps every monster, and refreshes the camera and HUD. */
   private update(deltaMs: number, nowMs: number): void {
     if (this.paused) return;
     if (this.pendingLevelComplete) {
@@ -453,6 +491,10 @@ export class Game3D {
     this.player.update(deltaMs);
 
     for (const monster of this.monsters) {
+      if (monster.isDying) {
+        monster.updateDeathFade(deltaMs);
+        continue;
+      }
       if (!monster.active || monster.logic.isDead) continue;
       monster.step(this.player.logic.x, this.player.logic.y, deltaMs, this.mazeGrid, {
         x: this.player.logic.x,
@@ -475,10 +517,13 @@ export class Game3D {
     if (this.input.isAttackDown()) this.tryPlayerAttack(nowMs);
 
     this.attackVisuals.update(deltaMs);
+    this.updateDamageFlash(deltaMs);
     this.updateCamera();
     this.refreshHud();
   }
 
+  /** Applies contact damage from any monster currently overlapping the player, subject to the
+   * post-hit invulnerability cooldown. */
   private handleContactDamage(nowMs: number): void {
     if (!this.player) return;
     const player = this.player.logic;
@@ -490,9 +535,27 @@ export class Game3D {
       player.lastHitAt = nowMs;
       const defense = totalDef(this.inventory.equipped.armor?.stats.defense, this.inventory.equipped.accessory?.stats.defense, this.statAllocation);
       applyDamage(player, mitigateDamage(monster.logic.damage, defense));
+      this.flashDamage();
     }
   }
 
+  /** Starts (or restarts, if already mid-fade) the red damage-flash overlay - actual fading
+   * happens per-frame in updateDamageFlash. */
+  private flashDamage(): void {
+    this.damageFlashElapsedMs = 0;
+    this.damageFlash.style.opacity = "0.35";
+  }
+
+  /** Advances the damage-flash fade by one frame - a no-op once it's fully faded. */
+  private updateDamageFlash(deltaMs: number): void {
+    if (this.damageFlashElapsedMs > DAMAGE_FLASH_MS) return;
+    this.damageFlashElapsedMs += deltaMs;
+    const t = Math.min(1, this.damageFlashElapsedMs / DAMAGE_FLASH_MS);
+    this.damageFlash.style.opacity = `${0.35 * (1 - t)}`;
+  }
+
+  /** Collects any key/chest/health pickup within range of the player, and flags the level
+   * complete once the exit door is reached while holding the exit key. */
   private handlePickups(): void {
     if (!this.player) return;
     const px = this.player.logic.x;
@@ -538,6 +601,9 @@ export class Game3D {
     }
   }
 
+  /** Attempts a player attack this frame: enforces the weapon's cooldown, finds valid targets
+   * (in range, in the facing cone, and with line of sight), plays the matching swing/projectile
+   * visual, and applies damage - same logic as GameScene's tryPlayerAttack. */
   private tryPlayerAttack(nowMs: number): void {
     if (!this.player || !this.mazeGrid) return;
     const player = this.player.logic;
@@ -584,6 +650,7 @@ export class Game3D {
     }
   }
 
+  /** Drops the exit key at the boss's death position. */
   private spawnExitKey(x: number, y: number): void {
     const mesh = buildKeyMesh("exit");
     const { x: wx, z: wz } = pxToWorld(x, y);
@@ -593,6 +660,7 @@ export class Game3D {
     this.keyPickups.push({ doorId: EXIT_KEY_ID, color: "exit", x, y, mesh, collected: false });
   }
 
+  /** Drops a health pickup at a killed monster's position (see LevelConfig's healthDropChance). */
   private spawnHealthPickup(x: number, y: number): void {
     const mesh = buildHealthPickupMesh();
     const { x: wx, z: wz } = pxToWorld(x, y);
@@ -601,6 +669,8 @@ export class Game3D {
     this.healthPickups.push({ x, y, mesh, collected: false });
   }
 
+  /** Advances to the next level: bumps the level counter (and highestLevelReached), saves, and
+   * rebuilds the maze from a fresh seed. */
   private async completeLevel(): Promise<void> {
     this.levelNumber += 1;
     this.highestLevelReached = Math.max(this.highestLevelReached, this.levelNumber);
@@ -608,12 +678,15 @@ export class Game3D {
     await this.buildLevel(Date.now());
   }
 
+  /** Drops back to level 1 with a fresh full-health player after the game-over screen continues
+   * - equipment/gold carry over untouched since highestLevelReached is deliberately not reset. */
   private async restartAfterDeath(): Promise<void> {
     this.levelNumber = 1;
     this.persist();
     await this.buildLevel(Date.now());
   }
 
+  /** Equips the clicked item, persists, and refreshes the panel to reflect the new equipped state. */
   private handleEquip(item: ItemDef): void {
     if (!item.slot) return;
     this.inventory.equip(item);
@@ -624,6 +697,8 @@ export class Game3D {
     );
   }
 
+  /** Spends one earned point on the given stat, if any are unspent, growing the current run's
+   * max/current HP right away for an HP point rather than waiting for the next level rebuild. */
   private allocateStatPoint(stat: keyof StatAllocation): void {
     const next = allocatePoint(this.highestLevelReached, this.statAllocation, stat);
     if (next === this.statAllocation) return;
@@ -635,10 +710,12 @@ export class Game3D {
     this.persist();
   }
 
+  /** Writes the current inventory/level/stat-allocation state to localStorage. */
   private persist(): void {
     this.saveManager.save(buildProfile(this.inventory, this.levelNumber, this.highestLevelReached, this.statAllocation));
   }
 
+  /** Opens the equipment panel (pausing the game loop) if closed, or closes it (resuming) if open. */
   private toggleInventoryPanel(): void {
     if (this.inventoryPanel.isOpen()) {
       this.inventoryPanel.close();
@@ -652,17 +729,21 @@ export class Game3D {
     }
   }
 
+  /** Opens the pause menu if closed, or closes it if open. */
   private togglePauseMenu(): void {
     if (this.pauseMenu.isOpen()) this.closePauseMenu();
     else this.openPauseMenu();
   }
 
+  /** Pauses the game loop and shows the pause menu - guarded against re-entry (e.g. the
+   * inventory panel already pausing) the same way GameScene's openPauseMenu is. */
   private openPauseMenu(): void {
     if (this.paused) return;
     this.paused = true;
     this.pauseMenu.show();
   }
 
+  /** Closes the pause menu and resumes the game loop. */
   private closePauseMenu(): void {
     this.pauseMenu.close();
     this.paused = false;
@@ -670,6 +751,8 @@ export class Game3D {
 
   onQuitToMenu: () => void = () => {};
 
+  /** Saves progress, closes the pause menu, and hands control back to the 3D menu screen (or 2D,
+   * via onQuitToMenu - see launch3D). */
   private quitToMenu(): void {
     this.persist();
     this.pauseMenu.close();
@@ -693,6 +776,7 @@ export class Game3D {
     for (const monster of this.monsters) monster.faceCamera(this.camera.position);
   }
 
+  /** Pushes the current player/inventory/maze state to the sidebar HUD for this frame's repaint. */
   private refreshHud(): void {
     if (!this.player || !this.fogOfWar || !this.mazeGrid) return;
     const eq = this.inventory.equipped;
@@ -712,13 +796,16 @@ export class Game3D {
       fog: this.fogOfWar,
       playerTx: this.player.tileX,
       playerTy: this.player.tileY,
+      doors: this.doors.filter((d) => d.active).map((d) => ({ tileX: d.tileX, tileY: d.tileY, color: d.color })),
     });
   }
 
+  /** Opens the options overlay - exposed for MenuScreen3D's Options button before a game exists. */
   showOptions(): void {
     showOptions3D(this.container);
   }
 
+  /** Stops the render loop and tears down the renderer/HUD/input, e.g. when leaving 3D mode. */
   dispose(): void {
     this.running = false;
     cancelAnimationFrame(this.rafHandle);
@@ -726,6 +813,7 @@ export class Game3D {
     this.input.dispose();
     this.hud.dispose();
     this.toasts.dispose();
+    this.damageFlash.remove();
     this.renderer.domElement.remove();
     this.renderer.dispose();
   }

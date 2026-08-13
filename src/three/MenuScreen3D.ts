@@ -58,6 +58,7 @@ export class MenuScreen3D {
     container.appendChild(this.root);
   }
 
+  /** Removes the menu screen from the DOM, e.g. once the player starts a game or leaves 3D mode. */
   dispose(): void {
     this.root.remove();
   }

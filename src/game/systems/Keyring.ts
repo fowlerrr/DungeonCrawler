@@ -9,10 +9,12 @@ export type KeyLabel = DoorColor | "exit";
 export class Keyring {
   private held = new Map<string, KeyLabel>();
 
+  /** Adds a key for the given door to the held set. */
   collect(doorId: string, label: KeyLabel): void {
     this.held.set(doorId, label);
   }
 
+  /** Whether the player currently holds the key for this door. */
   has(doorId: string): boolean {
     return this.held.has(doorId);
   }

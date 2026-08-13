@@ -51,6 +51,7 @@ export class Inventory {
     }
   }
 
+  /** Puts `item` in its slot, unconditionally replacing whatever was equipped there. */
   equip(item: ItemDef): void {
     if (!item.slot) return;
     this.equipped[item.slot] = item;

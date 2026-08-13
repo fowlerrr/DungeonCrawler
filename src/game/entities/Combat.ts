@@ -1,13 +1,18 @@
 import type { Player } from "./Player";
 
+/** Whether enough time has passed since the player's last attack to swing again - the weapon's
+ * (or the unarmed default's) cooldown. */
 export function canAttack(player: Player, now: number, cooldownMs: number): boolean {
   return now - player.lastAttackAt >= cooldownMs;
 }
 
+/** Whether enough time has passed since the player was last hit to take contact damage again -
+ * stops a monster standing on top of the player from dealing damage every single frame. */
 export function canBeHit(player: Player, now: number, cooldownMs: number): boolean {
   return now - player.lastHitAt >= cooldownMs;
 }
 
+/** Subtracts damage from a target's HP, floored at 0 (health never goes negative). */
 export function applyDamage(target: { hp: number }, amount: number): void {
   target.hp = Math.max(0, target.hp - amount);
 }
@@ -19,6 +24,7 @@ export function mitigateDamage(amount: number, defense: number): number {
   return Math.max(1, amount - defense);
 }
 
+/** Adds HP to a target, capped at its max (health never goes above the cap). */
 export function heal(target: { hp: number; maxHp: number }, amount: number): void {
   target.hp = Math.min(target.maxHp, target.hp + amount);
 }

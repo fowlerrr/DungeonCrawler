@@ -9,11 +9,13 @@ export function pxToWorld(px: number, py: number): { x: number; z: number } {
   return { x: (px / TILE_SIZE) * WORLD_UNITS_PER_TILE, z: (py / TILE_SIZE) * WORLD_UNITS_PER_TILE };
 }
 
+/** World-space center of a raster tile - the 3D equivalent of raster.ts's tileCenterPx. */
 export function tileCenterWorld(tx: number, ty: number): { x: number; z: number } {
   const { x, y } = tileCenterPx(tx, ty);
   return pxToWorld(x, y);
 }
 
+/** World-space center of a maze cell - the 3D equivalent of raster.ts's cellCenterPx. */
 export function cellCenterWorld(cell: Cell): { x: number; z: number } {
   const { x, y } = cellCenterPx(cell);
   return pxToWorld(x, y);

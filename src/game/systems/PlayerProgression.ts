@@ -23,10 +23,12 @@ export function totalStatPoints(highestLevelReached: number): number {
   return Math.max(0, highestLevelReached - 1);
 }
 
+/** How many earned points have already been allocated across all three stats. */
 export function spentPoints(allocation: StatAllocation): number {
   return allocation.atk + allocation.def + allocation.hp;
 }
 
+/** How many earned points are still available to spend. */
 export function unspentPoints(highestLevelReached: number, allocation: StatAllocation): number {
   return Math.max(0, totalStatPoints(highestLevelReached) - spentPoints(allocation));
 }
@@ -37,6 +39,7 @@ export interface StatBonuses {
   bonusHp: number;
 }
 
+/** Converts a raw point allocation into the actual gameplay bonuses it grants. */
 export function bonusesFromAllocation(allocation: StatAllocation): StatBonuses {
   return {
     bonusDamage: allocation.atk * ATK_PER_POINT,

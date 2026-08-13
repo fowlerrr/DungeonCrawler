@@ -1,3 +1,6 @@
+/** Scales a vector to length 1 (same direction, magnitude 1) - the zero vector maps to itself
+ * rather than dividing by zero, since "no direction" is a valid input (e.g. a monster standing
+ * still) that shouldn't crash. */
 export function normalize(x: number, y: number): { x: number; y: number } {
   if (x === 0 && y === 0) return { x: 0, y: 0 };
   const len = Math.hypot(x, y);

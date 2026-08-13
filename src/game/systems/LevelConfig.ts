@@ -19,6 +19,7 @@ export interface LevelConfig {
   healthDropChance: number;
 }
 
+/** Restricts `value` to the [min, max] range. */
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }

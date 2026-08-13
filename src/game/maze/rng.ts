@@ -21,6 +21,7 @@ export class Rng {
     return Math.floor(this.next() * max);
   }
 
+  /** Picks one random element from a non-empty list. */
   pick<T>(items: readonly T[]): T {
     return items[this.nextInt(items.length)];
   }

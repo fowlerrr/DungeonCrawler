@@ -40,6 +40,8 @@ export class AttackVisuals3D {
     parent.add(this.group);
   }
 
+  /** Spawns a brief cone-shaped melee slash near the origin, facing outward, that fades and
+   * spins away over SWIPE_DURATION_MS. */
   spawnSwipe(originPx: { x: number; y: number }, facing: { x: number; y: number }, art: WeaponArt = "sword"): void {
     const color = ART_COLOR[art] ?? ART_COLOR.sword;
     const mesh = new THREE.Mesh(
@@ -66,6 +68,8 @@ export class AttackVisuals3D {
     });
   }
 
+  /** Spawns a small sphere that travels from origin to destination at a fixed speed, then is
+   * removed on arrival - duration is derived from distance so travel time always matches range. */
   spawnProjectile(originPx: { x: number; y: number }, destPx: { x: number; y: number }, art: WeaponArt = "arrow"): void {
     const color = ART_COLOR[art] ?? ART_COLOR.arrow;
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), new THREE.MeshBasicMaterial({ color }));
@@ -88,6 +92,7 @@ export class AttackVisuals3D {
     });
   }
 
+  /** Advances every active visual by one frame, disposing and dropping any that have finished. */
   update(deltaMs: number): void {
     this.active = this.active.filter((visual) => {
       visual.elapsedMs += deltaMs;
@@ -103,6 +108,9 @@ export class AttackVisuals3D {
   }
 }
 
+/** Frees a mesh's GPU-side geometry/material buffers - Three.js doesn't garbage-collect these
+ * automatically when an object is removed from the scene, so every short-lived visual has to
+ * dispose them explicitly to avoid leaking memory. */
 function disposeObject(obj: THREE.Object3D): void {
   const mesh = obj as THREE.Mesh;
   mesh.geometry?.dispose();

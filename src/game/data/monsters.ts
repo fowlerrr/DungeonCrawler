@@ -239,6 +239,8 @@ export const BOSS: MonsterDef = {
   minLevel: 1,
 };
 
+/** Looks up a monster template by id - throws rather than returning undefined, since a missing
+ * id here always means a typo/data bug, not a valid "not found" case callers should handle. */
 export function getMonsterDef(id: string): MonsterDef {
   const def = MONSTERS.find((m) => m.id === id);
   if (!def) throw new Error(`Unknown monster id: ${id}`);

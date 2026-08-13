@@ -11,6 +11,7 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   const S = TILE_SIZE;
   const C = S / 2;
 
+  /** A flat filled square, with an optional border stroke. */
   const rect = (key: string, color: number, border?: number) => {
     g.clear();
     g.fillStyle(color, 1);
@@ -37,6 +38,8 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
     g.generateTexture(key, S, S);
   };
 
+  /** A filled circle, with an optional border stroke - used for the player, pickups, and a
+   * couple of round projectile shapes. */
   const circle = (key: string, color: number, radius: number, border?: number) => {
     g.clear();
     g.fillStyle(color, 1);
@@ -256,6 +259,8 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   g.fillCircle(C, S / 2, 2);
   g.generateTexture("chest", S, S);
 
+  /** A colored door panel with an accent-colored frame and handle line - one call per lock
+   * color/kind, matching DOOR_COLORS. */
   const door = (key: string, color: number, accent: number) => {
     g.clear();
     g.fillStyle(0x1a1a24, 1);

@@ -53,6 +53,8 @@ export class UIScene extends Phaser.Scene {
     super(SCENE_KEYS.UI);
   }
 
+  /** Builds the sidebar panel: minimap, HP/ATK/DEF/gold text, equipped-gear labels, key
+   * display, and the equipment-panel toggle. */
   create(): void {
     const panelX = MAZE_VIEW_WIDTH;
     this.add.rectangle(panelX, 0, SIDEBAR_WIDTH, GAME_HEIGHT, 0x1a1a24, 1).setOrigin(0, 0).setScrollFactor(0).setDepth(150);
@@ -98,15 +100,19 @@ export class UIScene extends Phaser.Scene {
     this.input.keyboard?.on("keydown-I", () => this.toggleInventoryPanel());
   }
 
+  /** Every owned item that can go in a slot - what InventoryPanel should list (consumables are
+   * excluded since they have no slot). */
   private ownedEquippables(gameScene: GameScene): ItemDef[] {
     return gameScene.inventory.owned.filter((item) => item.slot !== undefined);
   }
 
+  /** Currently-equipped item ids by slot, for InventoryPanel to mark the equipped row. */
   private equippedIds(gameScene: GameScene): Partial<Record<EquipmentSlot, string>> {
     const eq = gameScene.inventory.equipped;
     return { weapon: eq.weapon?.id, armor: eq.armor?.id, accessory: eq.accessory?.id };
   }
 
+  /** Opens the equipment panel (pausing GameScene) if closed, or closes it (resuming) if open. */
   private toggleInventoryPanel(): void {
     const gameScene = this.scene.get(SCENE_KEYS.GAME) as GameScene;
     if (this.inventoryPanel.isOpen()) {
@@ -118,6 +124,7 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
+  /** Equips the clicked item and refreshes the panel to reflect the new equipped state. */
   private handleEquip(item: ItemDef): void {
     const gameScene = this.scene.get(SCENE_KEYS.GAME) as GameScene;
     gameScene.equipItem(item);
@@ -152,12 +159,13 @@ export class UIScene extends Phaser.Scene {
     });
   }
 
+  /** Runs every frame: pulls fresh state from GameScene and repaints the minimap and HUD text. */
   update(): void {
     const gameScene = this.scene.get(SCENE_KEYS.GAME) as GameScene;
     const { mazeGrid, fogOfWar, playerSprite, inventory } = gameScene;
     if (!mazeGrid || !fogOfWar || !playerSprite) return;
 
-    this.minimap.redraw(mazeGrid, fogOfWar, playerSprite.tileX, playerSprite.tileY);
+    this.minimap.redraw(mazeGrid, fogOfWar, playerSprite.tileX, playerSprite.tileY, gameScene.activeLockedDoors());
 
     const player = playerSprite.logic;
     const eq = inventory.equipped;

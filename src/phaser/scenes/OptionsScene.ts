@@ -18,6 +18,7 @@ export class OptionsScene extends Phaser.Scene {
     super(SCENE_KEYS.OPTIONS);
   }
 
+  /** Builds the options panel: the auto-equip toggle and a close button. */
   create(): void {
     const centerX = GAME_WIDTH / 2;
     const centerY = GAME_HEIGHT / 2;
@@ -77,6 +78,7 @@ export class OptionsScene extends Phaser.Scene {
     backdrop.setInteractive();
   }
 
+  /** Redraws the auto-equip toggle's label and color to match the current saved setting. */
   private refreshToggle(): void {
     const enabled = isAutoEquipEnabled();
     this.autoEquipToggle.setText(enabled ? "ON" : "OFF");

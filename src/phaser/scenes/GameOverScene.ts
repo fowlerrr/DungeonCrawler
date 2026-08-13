@@ -14,6 +14,7 @@ export class GameOverScene extends Phaser.Scene {
     super(SCENE_KEYS.GAME_OVER);
   }
 
+  /** Draws the death panel and wires SPACE to resume GameScene and restart the run. */
   create(data: GameOverData): void {
     this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.75);
 

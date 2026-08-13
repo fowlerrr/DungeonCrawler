@@ -7,6 +7,7 @@ export class FogOfWar {
   private visited: boolean[][];
   private visible: boolean[][];
 
+  /** Starts with nothing visited or visible - call update() once the player's position is known. */
   constructor(width: number, height: number) {
     this.width = width;
     this.height = height;
@@ -14,6 +15,7 @@ export class FogOfWar {
     this.visible = FogOfWar.emptyGrid(width, height);
   }
 
+  /** Builds a width x height grid of `false`, used to reset visited/visible. */
   private static emptyGrid(width: number, height: number): boolean[][] {
     return Array.from({ length: height }, () => Array<boolean>(width).fill(false));
   }
@@ -39,10 +41,14 @@ export class FogOfWar {
     }
   }
 
+  /** Whether this tile is inside the player's current vision radius (out-of-bounds tiles are
+   * never visible). */
   isVisible(tx: number, ty: number): boolean {
     return this.visible[ty]?.[tx] ?? false;
   }
 
+  /** Whether this tile has ever been seen - stays true after the player moves away, so explored
+   * areas remain on the map (dimmed) rather than re-hiding behind the fog. */
   isVisited(tx: number, ty: number): boolean {
     return this.visited[ty]?.[tx] ?? false;
   }

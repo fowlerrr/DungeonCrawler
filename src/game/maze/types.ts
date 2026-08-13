@@ -24,6 +24,8 @@ export const DIRECTION_DELTAS: Record<Direction, { dx: number; dy: number }> = {
   W: { dx: -1, dy: 0 },
 };
 
+/** Turns a cell into a string so it can be used as a Map/Set key - plain object identity
+ * wouldn't work since two `{x,y}` objects with the same coordinates aren't `===` equal. */
 export function cellKey(c: Cell): string {
   return `${c.x},${c.y}`;
 }
