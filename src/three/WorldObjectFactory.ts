@@ -2,17 +2,27 @@ import * as THREE from "three";
 import { DOOR_COLOR_HEX, KEY_COLOR_HEX, PALETTE } from "./constants3d";
 
 /** Low-poly primitives for every non-actor world object (doors, keys, chests, health pickups) -
- * same "procedural first" approach as the player/monster meshes, no external assets. */
+ * same "procedural first" approach as the player/monster meshes, no external assets, except for
+ * doors, which use the same real door art the 2D exit door uses (see Textures3D.ts). There's
+ * only the one door image, not one per lock color, so lock-color variety comes from tinting it
+ * via each mesh's own material.color (final render color = texture * material.color) rather than
+ * needing ten separate door images. */
 
-export function buildDoorMesh(color: string): THREE.Mesh {
+export function buildDoorMesh(color: string, doorTexture: THREE.Texture): THREE.Mesh {
   const hex = DOOR_COLOR_HEX[color] ?? 0x555555;
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.3, 0.15), new THREE.MeshLambertMaterial({ color: hex }));
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.85, 1.3, 0.15),
+    new THREE.MeshLambertMaterial({ map: doorTexture, color: hex }),
+  );
   mesh.position.y = 0.65;
   return mesh;
 }
 
-export function buildExitDoorMesh(): THREE.Mesh {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.4, 0.15), new THREE.MeshLambertMaterial({ color: PALETTE.exitDoor }));
+export function buildExitDoorMesh(doorTexture: THREE.Texture): THREE.Mesh {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.85, 1.4, 0.15),
+    new THREE.MeshLambertMaterial({ map: doorTexture, color: PALETTE.exitDoor }),
+  );
   mesh.position.y = 0.7;
   return mesh;
 }

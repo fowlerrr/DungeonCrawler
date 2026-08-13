@@ -51,6 +51,7 @@ import { MonsterController3D } from "./entities/MonsterController3D";
 import { PlayerController3D } from "./entities/PlayerController3D";
 import { InputController3D } from "./input/InputController3D";
 import { MazeMesh } from "./MazeMesh";
+import { loadTextures3D, type Textures3D } from "./Textures3D";
 import { Hud3D, KEY_COLOR_HEX, SIDEBAR_WIDTH } from "./ui/Hud3D";
 import { InventoryPanel3D } from "./ui/InventoryPanel3D";
 import { PauseMenu3D, showGameOver3D, showOptions3D, showTutorial3D } from "./ui/Overlays3D";
@@ -120,6 +121,7 @@ export class Game3D {
   private readonly inventoryPanel: InventoryPanel3D;
   private readonly pauseMenu: PauseMenu3D;
   private attackVisuals!: AttackVisuals3D;
+  private textures: Textures3D | null = null;
 
   private inventory!: Inventory;
   private saveManager!: SaveManager;
@@ -215,8 +217,10 @@ export class Game3D {
   };
 
   /** `fresh: true` mirrors GameScene.create({fresh:true}) - wipes any save and starts clean;
-   * false resumes whatever LocalStorageSaveManager has. */
-  start(fresh: boolean): void {
+   * false resumes whatever LocalStorageSaveManager has. Async because the very first call has to
+   * wait on texture loading (see Textures3D.ts) before there's anything to build a level with -
+   * every call after that resolves instantly, since textures are cached after the first load. */
+  async start(fresh: boolean): Promise<void> {
     this.inventory = new Inventory();
     this.saveManager = new LocalStorageSaveManager();
     this.levelNumber = 1;
@@ -236,7 +240,7 @@ export class Game3D {
     }
 
     this.gameOverShown = false;
-    this.buildLevel(Date.now());
+    await this.buildLevel(Date.now());
 
     if (!this.running) {
       this.running = true;
@@ -245,7 +249,10 @@ export class Game3D {
     }
   }
 
-  private buildLevel(seed: number): void {
+  private async buildLevel(seed: number): Promise<void> {
+    this.textures ??= await loadTextures3D();
+    const textures = this.textures;
+
     this.levelGroup.clear();
     this.mazeMesh?.dispose();
     this.keyring = new Keyring();
@@ -267,7 +274,7 @@ export class Game3D {
       lockCount: config.lockCount,
     });
     this.mazeGrid = level.grid;
-    this.mazeMesh = new MazeMesh(level.grid);
+    this.mazeMesh = new MazeMesh(level.grid, textures);
     this.levelGroup.add(this.mazeMesh.group);
 
     const entranceTile = cellToTile(level.entrance);
@@ -288,7 +295,7 @@ export class Game3D {
     for (const door of level.doors) {
       const { tx, ty } = edgeConnectorTile(door.a, door.b);
       const { x, y } = tileCenterPx(tx, ty);
-      const mesh = buildDoorMesh(door.color);
+      const mesh = buildDoorMesh(door.color, textures.door);
       const { x: wx, z: wz } = pxToWorld(x, y);
       mesh.position.x += wx;
       mesh.position.z += wz;
@@ -352,7 +359,7 @@ export class Game3D {
 
     const exitSpawn = cellCenterPx(level.exit);
     const exitTile = cellToTile(level.exit);
-    const exitMesh = buildExitDoorMesh();
+    const exitMesh = buildExitDoorMesh(textures.door);
     const { x: exitWx, z: exitWz } = pxToWorld(exitSpawn.x, exitSpawn.y);
     exitMesh.position.x += exitWx;
     exitMesh.position.z += exitWz;
@@ -587,17 +594,17 @@ export class Game3D {
     this.healthPickups.push({ x, y, mesh, collected: false });
   }
 
-  private completeLevel(): void {
+  private async completeLevel(): Promise<void> {
     this.levelNumber += 1;
     this.highestLevelReached = Math.max(this.highestLevelReached, this.levelNumber);
     this.persist();
-    this.buildLevel(Date.now());
+    await this.buildLevel(Date.now());
   }
 
-  private restartAfterDeath(): void {
+  private async restartAfterDeath(): Promise<void> {
     this.levelNumber = 1;
     this.persist();
-    this.buildLevel(Date.now());
+    await this.buildLevel(Date.now());
   }
 
   private handleEquip(item: ItemDef): void {

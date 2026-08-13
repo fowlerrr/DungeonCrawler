@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import type { FogOfWar } from "../game/systems/FogOfWar";
 import { TileType, type TileGrid } from "../game/maze/types";
-import { CEILING_Y, PALETTE, WALL_HEIGHT } from "./constants3d";
+import { CEILING_Y, WALL_HEIGHT } from "./constants3d";
+import type { Textures3D } from "./Textures3D";
 
 const HIDDEN_SCALE = new THREE.Matrix4().makeScale(0, 0, 0);
 
@@ -24,7 +25,7 @@ export class MazeMesh {
   private readonly floorTiles: { tx: number; ty: number; index: number }[] = [];
   private readonly wallTiles: { tx: number; ty: number; index: number }[] = [];
 
-  constructor(grid: TileGrid) {
+  constructor(grid: TileGrid, textures: Textures3D) {
     this.grid = grid;
     const rows = grid.length;
     const cols = grid[0]?.length ?? 0;
@@ -40,13 +41,17 @@ export class MazeMesh {
 
     const floorGeo = new THREE.BoxGeometry(1, 0.1, 1);
     const wallGeo = new THREE.BoxGeometry(1, WALL_HEIGHT, 1);
-    // Every floor instance is the same color, and every wall instance is the same color, so
-    // there's no need for per-instance vertex colors - just a plain material color per mesh.
-    // (InstancedMesh + MeshLambertMaterial({vertexColors:true}) + setColorAt also turned out to
-    // render solid black in this Three.js version regardless of lighting - confirmed isolated
-    // from everything else in this file - so this is a correctness fix as much as a simplification.)
-    const floorMaterial = new THREE.MeshLambertMaterial({ color: PALETTE.floor });
-    const wallMaterial = new THREE.MeshLambertMaterial({ color: PALETTE.wallTop });
+    // Every floor instance shows the same texture, and every wall instance shows the same
+    // texture, so there's no need for per-instance vertex colors - just a plain textured
+    // material per mesh, one full copy of the image per instance (each instance's own box
+    // geometry already has its own 0-1 UV space, so this "tiles" for free via instancing rather
+    // than needing repeat-wrapping). (InstancedMesh + MeshLambertMaterial({vertexColors:true}) +
+    // setColorAt also turned out to render solid black in this Three.js version regardless of
+    // lighting - confirmed isolated from everything else in this file - so leaving vertex colors
+    // out entirely is a correctness fix as much as it is the right call for uniform per-mesh
+    // texturing.)
+    const floorMaterial = new THREE.MeshLambertMaterial({ map: textures.floor });
+    const wallMaterial = new THREE.MeshLambertMaterial({ map: textures.wall });
 
     this.floorMesh = new THREE.InstancedMesh(floorGeo, floorMaterial, Math.max(1, floorCount));
     this.wallMesh = new THREE.InstancedMesh(wallGeo, wallMaterial, Math.max(1, wallCount));
