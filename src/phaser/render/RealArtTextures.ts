@@ -1,7 +1,9 @@
 import Phaser from "phaser";
 import { TILE_SIZE } from "../../config/constants";
+import { MONSTER_ART_FILENAMES } from "../../game/data/monsterArt";
 
 const TILES_MEDIUM = "assets/tilesets/Assets/Tiles_Medium";
+const MONSTER_PACK = "assets/sprites/negative-monster-pack";
 
 /**
  * Prototype swap-in for two free hand-drawn/hand-painted itch.io packs (Penzilla's "Dungeon
@@ -32,10 +34,10 @@ export function preloadRealArt(scene: Phaser.Scene): void {
   scene.load.image("raw_floor_four", `${TILES_MEDIUM}/Tile18_Wall.png`);
   scene.load.image("raw_door_exit", "assets/tilesets/Assets/Decor/Door.png");
 
-  scene.load.image("raw_monster_slime", "assets/sprites/negative-monster-pack/mushroom_01.png");
-  scene.load.image("raw_monster_goblin", "assets/sprites/negative-monster-pack/imp_01.png");
-  scene.load.image("raw_monster_boss", "assets/sprites/negative-monster-pack/ogre_01.png");
-  scene.load.image("raw_player", "assets/sprites/negative-monster-pack/pirate_01.png");
+  for (const [spriteKey, filename] of Object.entries(MONSTER_ART_FILENAMES)) {
+    scene.load.image(`raw_${spriteKey}`, `${MONSTER_PACK}/${filename}`);
+  }
+  scene.load.image("raw_player", `${MONSTER_PACK}/pirate_01.png`);
 }
 
 export function applyRealArt(scene: Phaser.Scene): void {
@@ -49,9 +51,9 @@ export function applyRealArt(scene: Phaser.Scene): void {
 
   bakeWallFill(scene, "raw_floor_four", "tile_wall");
 
-  replaceWithNativeArt(scene, "raw_monster_slime", "monster_slime");
-  replaceWithNativeArt(scene, "raw_monster_goblin", "monster_goblin");
-  replaceWithNativeArt(scene, "raw_monster_boss", "monster_boss");
+  for (const spriteKey of Object.keys(MONSTER_ART_FILENAMES)) {
+    replaceWithNativeArt(scene, `raw_${spriteKey}`, spriteKey);
+  }
   replaceWithNativeArt(scene, "raw_player", "player");
 }
 

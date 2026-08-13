@@ -9,6 +9,12 @@ export interface MonsterDef {
   aiType: AiType;
   spriteKey: string;
   isBoss?: boolean;
+  /** Which difficulty tier this monster belongs to (1 = earliest/weakest) - purely descriptive,
+   * doesn't drive any logic itself. See minLevel for the actual spawn gate. */
+  tier: number;
+  /** The lowest level this monster can spawn at - see getSpawnableMonsters. Ignored for the
+   * boss, which is always spawned directly rather than drawn from the regular pool. */
+  minLevel: number;
 }
 
 export type RarityTier = "normal" | "rare" | "epic" | "legendary";

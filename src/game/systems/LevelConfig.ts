@@ -37,7 +37,9 @@ export function getLevelConfig(levelNumber: number): LevelConfig {
     mazeRows: clamp(8 + n, 8, 24),
     braidFactor: clamp(0.3 + n * 0.01, 0.3, 0.55),
     lockCount: clamp(2 + Math.floor(n / 2), 2, 10),
-    monsterCount: clamp(5 + n * 2, 5, 40),
+    // Bumped both the base and the cap slightly alongside the new tiered monster roster
+    // (monsters.ts) - more monsters to actually meet now that there's more variety to meet.
+    monsterCount: clamp(6 + n * 2, 6, 50),
     monsterHpMult: 1 + (n - 1) * 0.15,
     // Slowed from 0.1/level and, for the boss, dropped the +20% level-1 head start - playtest
     // feedback was that damage taken was already punishing by level 2.

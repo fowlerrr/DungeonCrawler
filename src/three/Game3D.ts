@@ -12,7 +12,7 @@ import {
   TILE_SIZE,
 } from "../config/constants";
 import { ALL_ITEMS } from "../game/data/items";
-import { BOSS, MONSTERS } from "../game/data/monsters";
+import { BOSS, getSpawnableMonsters } from "../game/data/monsters";
 import { getRarityConfig } from "../game/data/rarity";
 import type { ItemDef } from "../game/data/types";
 import { applyDamage, canAttack, canBeHit, heal, mitigateDamage, selectAttackTargets, selectNearestTarget } from "../game/entities/Combat";
@@ -299,6 +299,12 @@ export class Game3D {
       const { x: wx, z: wz } = pxToWorld(x, y);
       mesh.position.x += wx;
       mesh.position.z += wz;
+      // buildDoorMesh's box is built wide-along-X by default, so its face is only visible
+      // approaching along Z - correct for an edge connecting cells that differ in y (walked
+      // through north/south), but a door on an edge connecting cells that differ in x (walked
+      // through east/west) needs a quarter turn so its wide face points the way it's actually
+      // approached, instead of presenting its thin edge.
+      if (door.a.y === door.b.y) mesh.rotation.y = Math.PI / 2;
       this.levelGroup.add(mesh);
       this.doors.push({ doorId: door.id, tileX: tx, tileY: ty, active: true, color: door.color, mesh, px: x, py: y });
     }
@@ -320,16 +326,17 @@ export class Game3D {
     const monsterRng = new Rng(seed + 777);
     const monsterCells = pickRandomCells(config.mazeCols, config.mazeRows, config.monsterCount, monsterRng, excludedCells);
     for (const cell of monsterCells) excludedCells.add(cellKey(cell));
+    const spawnableMonsters = getSpawnableMonsters(this.levelNumber);
     for (const cell of monsterCells) {
-      const def = monsterRng.pick(MONSTERS);
+      const def = monsterRng.pick(spawnableMonsters);
       const { x, y } = cellCenterPx(cell);
-      const monster = new MonsterController3D(x, y, def, config.monsterHpMult, config.monsterDamageMult);
+      const monster = new MonsterController3D(x, y, def, config.monsterHpMult, config.monsterDamageMult, textures.monsters[def.spriteKey]);
       this.monsters.push(monster);
       this.levelGroup.add(monster.mesh);
     }
 
     const bossSpawn = cellCenterPx(level.bossCell);
-    const boss = new MonsterController3D(bossSpawn.x, bossSpawn.y, BOSS, config.bossHpMult, config.bossDamageMult);
+    const boss = new MonsterController3D(bossSpawn.x, bossSpawn.y, BOSS, config.bossHpMult, config.bossDamageMult, textures.monsters[BOSS.spriteKey]);
     this.monsters.push(boss);
     this.levelGroup.add(boss.mesh);
 

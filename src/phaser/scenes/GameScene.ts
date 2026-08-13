@@ -14,7 +14,7 @@ import {
   VISION_RADIUS_TILES,
 } from "../../config/constants";
 import { ALL_ITEMS } from "../../game/data/items";
-import { BOSS, MONSTERS } from "../../game/data/monsters";
+import { BOSS, getSpawnableMonsters } from "../../game/data/monsters";
 import type { ItemDef } from "../../game/data/types";
 import {
   applyDamage,
@@ -401,9 +401,10 @@ export class GameScene extends Phaser.Scene {
     const monsterRng = new Rng(seed + 777);
     const monsterCells = pickRandomCells(config.mazeCols, config.mazeRows, config.monsterCount, monsterRng, excludedCells);
     for (const cell of monsterCells) excludedCells.add(cellKey(cell));
+    const spawnableMonsters = getSpawnableMonsters(this.levelNumber);
     const monsterGroup = this.physics.add.group();
     for (const cell of monsterCells) {
-      const def = monsterRng.pick(MONSTERS);
+      const def = monsterRng.pick(spawnableMonsters);
       const { x, y } = cellCenterPx(cell);
       const monster = new MonsterSprite(this, x, y, def, config.monsterHpMult, config.monsterDamageMult);
       this.monsterSprites.push(monster);

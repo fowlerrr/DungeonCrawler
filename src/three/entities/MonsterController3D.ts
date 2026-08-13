@@ -15,12 +15,6 @@ const OCCUPANCY_RADIUS = TILE_SIZE * 0.35;
 const HEALTH_BAR_WIDTH = 0.5;
 const HEALTH_BAR_HEIGHT = 0.06;
 
-const MONSTER_COLOR: Record<string, number> = {
-  slime: PALETTE.slime,
-  goblin: PALETTE.goblin,
-  dungeon_lord: PALETTE.boss,
-};
-
 /** Continuous (not grid-locked) movement, unlike the player - wander/chase exactly mirrors
  * MonsterSprite.step's logic, but since there's no Arcade Physics here, wall/player collision is
  * resolved manually every frame via collision3d.ts instead of a collider. */
@@ -50,16 +44,22 @@ export class MonsterController3D {
   private bodyMaterial: THREE.MeshLambertMaterial;
   private flashUntilMs = 0;
 
-  constructor(x: number, y: number, def: MonsterDef, hpMult = 1, damageMult = 1) {
+  constructor(x: number, y: number, def: MonsterDef, hpMult = 1, damageMult = 1, texture: THREE.Texture) {
     this.def = def;
     this.logic = new Monster(def, hpMult, damageMult);
     this.logic.x = x;
     this.logic.y = y;
 
     const height = def.isBoss ? BOSS_MESH_HEIGHT : MONSTER_MESH_HEIGHT;
-    const color = MONSTER_COLOR[def.id] ?? PALETTE.goblin;
-    this.bodyMaterial = new THREE.MeshLambertMaterial({ color });
-    this.bodyMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(height / 2, def.isBoss ? 1 : 0), this.bodyMaterial);
+    // A camera-facing billboard rather than baked onto a 3D shape - these are single painted
+    // illustrations (see Textures3D.ts) with no back/side view to wrap onto solid geometry, the
+    // same reason the 2D game just uses them as a flat sprite. alphaTest (rather than relying on
+    // transparent blending alone) keeps the cutout's edges crisp and avoids draw-order artifacts
+    // against other transparent objects (health bars, attack visuals) sharing the scene.
+    const image = texture.image as { width: number; height: number };
+    const aspect = image.width / image.height;
+    this.bodyMaterial = new THREE.MeshLambertMaterial({ map: texture, transparent: true, alphaTest: 0.5 });
+    this.bodyMesh = new THREE.Mesh(new THREE.PlaneGeometry(height * aspect, height), this.bodyMaterial);
     this.bodyMesh.position.y = height / 2;
 
     this.healthBarBg = new THREE.Mesh(
@@ -164,8 +164,10 @@ export class MonsterController3D {
   }
 
   faceCamera(cameraPos: THREE.Vector3): void {
-    // Health bar planes are simple billboards - always face the camera rather than being drawn
-    // once at a fixed rotation, so they stay readable regardless of view angle.
+    // The body plane and both health bar planes are all simple billboards - always face the
+    // camera rather than being drawn once at a fixed rotation, so the flat art always reads as
+    // the intended silhouette (and the bars stay readable) regardless of view angle.
+    this.bodyMesh.lookAt(cameraPos.x, this.bodyMesh.getWorldPosition(new THREE.Vector3()).y, cameraPos.z);
     this.healthBarBg.lookAt(cameraPos.x, this.healthBarBg.getWorldPosition(new THREE.Vector3()).y, cameraPos.z);
     this.healthBarFill.lookAt(cameraPos.x, this.healthBarFill.getWorldPosition(new THREE.Vector3()).y, cameraPos.z);
   }

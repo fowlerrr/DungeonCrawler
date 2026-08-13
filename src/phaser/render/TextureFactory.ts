@@ -211,6 +211,39 @@ export function generatePlaceholderTextures(scene: Phaser.Scene): void {
   g.strokeCircle(C, C, 15);
   g.generateTexture("monster_boss", S, S);
 
+  /** Generic placeholder for the expanded monster roster (see game/data/monsters.ts) - a colored
+   * core with a few spikes, distinct per monster so each at least reads as a different threat
+   * before real art replaces it. Real art (RealArtTextures.ts) covers every one of these in
+   * practice; this is purely the fallback if it's ever unavailable. */
+  const creature = (key: string, color: number, ringColor: number, spikeCount: number) => {
+    g.clear();
+    g.fillStyle(color, 1);
+    for (let i = 0; i < spikeCount; i++) {
+      const angle = (i / spikeCount) * Math.PI * 2;
+      g.fillCircle(C + Math.cos(angle) * 12, C + Math.sin(angle) * 12, 3);
+    }
+    g.fillCircle(C, C, 11);
+    g.lineStyle(2, ringColor, 1);
+    g.strokeCircle(C, C, 11);
+    g.generateTexture(key, S, S);
+  };
+  creature("monster_worm", 0xc9a86a, 0x6b4a2b, 0);
+  creature("monster_skeleton", 0xe8e4d8, 0x555555, 4);
+  creature("monster_spider", 0x2a2a2a, 0x000000, 8);
+  creature("monster_snake", 0x4a8f3c, 0x1f4a1a, 0);
+  creature("monster_wolf", 0x6b6b6b, 0x2a2a2a, 4);
+  creature("monster_beastman", 0x8b5a2b, 0x3a2410, 4);
+  creature("monster_crocodog", 0x4a6b3a, 0x1f2f18, 4);
+  creature("monster_bug", 0x7a2b8b, 0x2e0854, 6);
+  creature("monster_dreg", 0x5a1a1a, 0x2a0a0a, 5);
+  creature("monster_koboglin", 0xb3843c, 0x5c3a14, 4);
+  creature("monster_golem_armor", 0x8a8a9a, 0x3a3a4a, 4);
+  creature("monster_golem_acid", 0x7ac93c, 0x3a5c1a, 4);
+  creature("monster_float_armor", 0x9aa8c9, 0x3a4a6a, 4);
+  creature("monster_succubus", 0xc93c8a, 0x5c1a3a, 4);
+  creature("monster_necro_thrall", 0x5a3c7a, 0x2a1a4a, 4);
+  creature("monster_golem_magma", 0xd9541f, 0x6a1f0a, 6);
+
   // Pickups / interactables
   g.clear();
   g.fillStyle(0xb5772b, 1);
