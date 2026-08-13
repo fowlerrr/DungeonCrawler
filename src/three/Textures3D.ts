@@ -1,8 +1,7 @@
 import * as THREE from "three";
 import { MONSTER_ART_FILENAMES } from "../game/data/monsterArt";
 
-const TILES_MEDIUM = "assets/tilesets/Assets/Tiles_Medium";
-const DOOR_ASSET = "assets/tilesets/Assets/Decor/Door.png";
+const DUNGEON_TILESET = "assets/tilesets/dungeon-tileset-ii";
 const MONSTER_PACK = "assets/sprites/negative-monster-pack";
 
 export interface Textures3D {
@@ -16,16 +15,16 @@ export interface Textures3D {
 let cached: Promise<Textures3D> | null = null;
 
 /**
- * Loads the same real hand-painted assets the 2D game uses (see RealArtTextures.ts) rather than
- * sourcing anything new, so both clients share one art style and one set of licensing terms (see
- * CREDITS.md). The 2D game's floor autotile system picks between 6 tile shapes per neighbor
- * configuration purely to fake a brick border around adjacent walls - that trick doesn't apply
- * here, since 3D walls are real geometry that reads as a wall on its own. A single floor texture
- * and a single wall texture (the tileset's fully-bordered piece, Tile18 - the one with the most
- * brick coverage, so it reads best as a repeating wall surface rather than "mostly floor with a
- * sliver of border") are enough. The door art is real too (the same asset the 2D exit door
- * uses) - lock-door colors come from tinting it via each mesh's own material.color rather than
- * needing ten separate door images (see WorldObjectFactory.buildDoorMesh).
+ * Loads the same real art the 2D game uses (see RealArtTextures.ts) rather than sourcing
+ * anything new, so both clients share one art style and one set of licensing terms (see
+ * CREDITS.md): 0x72's CC0 "16x16 DungeonTileset II" for floor/wall/door, Negative Inspiration's
+ * CC BY-SA monster pack for creatures. The 2D game's floor autotile system picks between 6 tile
+ * shapes per neighbor configuration to vary the floor near walls - that trick doesn't apply here
+ * regardless of which tileset is in use, since 3D walls are real geometry that reads as a wall on
+ * its own. A single floor texture and a single wall texture are enough. The door art is real too
+ * (the same asset the 2D exit door uses) - lock-door colors come from tinting it via each mesh's
+ * own material.color rather than needing ten separate door images (see
+ * WorldObjectFactory.buildDoorMesh).
  *
  * Monster art is the same per-creature pack images the 2D game uses, applied as a camera-facing
  * billboard rather than baked onto 3D geometry (see MonsterController3D) - a single painted
@@ -41,9 +40,9 @@ export function loadTextures3D(): Promise<Textures3D> {
 
     const monsterKeys = Object.keys(MONSTER_ART_FILENAMES);
     cached = Promise.all([
-      load(`${TILES_MEDIUM}/Tile01_Floor.png`),
-      load(`${TILES_MEDIUM}/Tile18_Wall.png`),
-      load(DOOR_ASSET),
+      load(`${DUNGEON_TILESET}/floor_1.png`),
+      load(`${DUNGEON_TILESET}/wall_mid.png`),
+      load(`${DUNGEON_TILESET}/doors_leaf_closed.png`),
       Promise.all(monsterKeys.map((key) => load(`${MONSTER_PACK}/${MONSTER_ART_FILENAMES[key]}`))),
     ]).then(([floor, wall, door, monsterTextures]) => {
       const monsters: Record<string, THREE.Texture> = {};
@@ -52,6 +51,12 @@ export function loadTextures3D(): Promise<Textures3D> {
       for (const tex of [floor, wall, door, ...monsterTextures]) {
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.anisotropy = 4;
+      }
+      // The tile/door pack is genuine small-scale pixel art (16x16/32x32 source) - nearest
+      // filtering keeps it crisp up close instead of the default linear filter blurring it into
+      // mush when magnified onto a wall-sized face.
+      for (const tex of [floor, wall, door]) {
+        tex.magFilter = THREE.NearestFilter;
       }
       // Monster art is painted illustrations on a transparent background, unlike the tile/door
       // textures - keep it crisp at a distance without the mip chain muddying the cutout edges.

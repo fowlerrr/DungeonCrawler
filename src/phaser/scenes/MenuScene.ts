@@ -5,6 +5,7 @@ import { LocalStorageSaveManager } from "../../game/systems/SaveManager";
 const TITLE_Y = GAME_HEIGHT / 2 - 150;
 const BUTTON_START_Y = GAME_HEIGHT / 2 - 50;
 const BUTTON_SPACING = 46;
+const BUTTON_COUNT = 6;
 const TUTORIAL_SEEN_KEY = "dungeoncrawler:tutorialSeen";
 
 /** First scene the player actually sees, reached every time the page loads (PreloadScene starts
@@ -16,8 +17,8 @@ export class MenuScene extends Phaser.Scene {
     super(SCENE_KEYS.MENU);
   }
 
-  /** Builds the title panel and its New Game/Continue/How to Play/Options/3D buttons, and
-   * auto-launches the tutorial on a player's very first visit. */
+  /** Builds the title panel and its New Game/Continue/How to Play/Options/Credits/3D buttons,
+   * and auto-launches the tutorial on a player's very first visit. */
   create(): void {
     const bg = this.add.graphics();
     bg.fillStyle(0x0d0d14, 1);
@@ -27,7 +28,7 @@ export class MenuScene extends Phaser.Scene {
 
     const panelWidth = 360;
     const panelTop = TITLE_Y - 55;
-    const panelBottom = BUTTON_START_Y + BUTTON_SPACING * 4 + 55;
+    const panelBottom = BUTTON_START_Y + BUTTON_SPACING * (BUTTON_COUNT - 1) + 55;
     const panel = this.add.graphics();
     panel.fillStyle(0x1a1a24, 0.92);
     panel.fillRoundedRect(GAME_WIDTH / 2 - panelWidth / 2, panelTop, panelWidth, panelBottom - panelTop, 14);
@@ -55,7 +56,8 @@ export class MenuScene extends Phaser.Scene {
     );
     this.addButton(BUTTON_START_Y + BUTTON_SPACING * 2, "How to Play", () => this.scene.launch(SCENE_KEYS.TUTORIAL));
     this.addButton(BUTTON_START_Y + BUTTON_SPACING * 3, "Options", () => this.scene.launch(SCENE_KEYS.OPTIONS));
-    this.addButton(BUTTON_START_Y + BUTTON_SPACING * 4, "Play in 3D (beta)", () => this.playIn3D());
+    this.addButton(BUTTON_START_Y + BUTTON_SPACING * 4, "Credits", () => this.scene.launch(SCENE_KEYS.CREDITS));
+    this.addButton(BUTTON_START_Y + BUTTON_SPACING * 5, "Play in 3D (beta)", () => this.playIn3D());
 
     if (!localStorage.getItem(TUTORIAL_SEEN_KEY)) {
       localStorage.setItem(TUTORIAL_SEEN_KEY, "1");

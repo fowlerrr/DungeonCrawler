@@ -9,6 +9,7 @@ import { UIScene } from "./phaser/scenes/UIScene";
 import { PauseScene } from "./phaser/scenes/PauseScene";
 import { TutorialScene } from "./phaser/scenes/TutorialScene";
 import { OptionsScene } from "./phaser/scenes/OptionsScene";
+import { CreditsScene } from "./phaser/scenes/CreditsScene";
 
 let current: Phaser.Game | null = null;
 
@@ -28,7 +29,7 @@ export function bootPhaser(): Phaser.Game {
       default: "arcade",
       arcade: { gravity: { x: 0, y: 0 }, debug: false },
     },
-    scene: [BootScene, PreloadScene, MenuScene, GameScene, UIScene, GameOverScene, PauseScene, TutorialScene, OptionsScene],
+    scene: [BootScene, PreloadScene, MenuScene, GameScene, UIScene, GameOverScene, PauseScene, TutorialScene, OptionsScene, CreditsScene],
   });
 
   if (import.meta.env.DEV) {

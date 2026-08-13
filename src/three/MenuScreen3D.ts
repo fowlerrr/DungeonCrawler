@@ -1,6 +1,6 @@
 import { LocalStorageSaveManager } from "../game/systems/SaveManager";
 import { button, el, THEME } from "./ui/domHelpers";
-import { showOptions3D, showTutorial3D } from "./ui/Overlays3D";
+import { showCredits3D, showOptions3D, showTutorial3D } from "./ui/Overlays3D";
 
 export interface MenuScreen3DCallbacks {
   onStart: (fresh: boolean) => void;
@@ -8,10 +8,10 @@ export interface MenuScreen3DCallbacks {
 }
 
 /** DOM port of MenuScene.ts's first screen, shown whenever 3D mode is entered without an
- * in-progress game - same title/panel treatment, same New Game/Continue/How to Play/Options
- * buttons (Options and the tutorial overlay are shared verbatim with the 2D pause menu's
- * equivalents via Overlays3D.ts, since they're page-level concerns, not per-mode ones), plus a
- * "Back to 2D" button the 2D game doesn't need. */
+ * in-progress game - same title/panel treatment, same New Game/Continue/How to Play/Options/
+ * Credits buttons (those overlays are shared verbatim with the 2D pause menu's equivalents via
+ * Overlays3D.ts, since they're page-level concerns, not per-mode ones), plus a "Back to 2D"
+ * button the 2D game doesn't need. */
 export class MenuScreen3D {
   private readonly root: HTMLDivElement;
 
@@ -51,6 +51,7 @@ export class MenuScreen3D {
     buttons.appendChild(continueBtn);
     buttons.appendChild(button("How to Play", () => showTutorial3D(this.root), { fontSize: "18px", color: THEME.text }));
     buttons.appendChild(button("Options", () => showOptions3D(this.root), { fontSize: "18px", color: THEME.text }));
+    buttons.appendChild(button("Credits", () => showCredits3D(this.root), { fontSize: "18px", color: THEME.text }));
     buttons.appendChild(button("Back to 2D", () => callbacks.onBackTo2D(), { fontSize: "14px", color: THEME.dim, marginTop: "10px" }));
     panel.appendChild(buttons);
 

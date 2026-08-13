@@ -39,4 +39,5 @@ export const SCENE_KEYS = {
   PAUSE: "PauseScene",
   TUTORIAL: "TutorialScene",
   OPTIONS: "OptionsScene",
+  CREDITS: "CreditsScene",
 } as const;

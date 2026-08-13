@@ -164,6 +164,27 @@ export function showTutorial3D(root: HTMLElement): Modal {
   return modal;
 }
 
+const CREDITS_LINES = [
+  "Dungeon tiles & door",
+  "16x16 DungeonTileset II by 0x72",
+  "CC0 1.0 Universal - 0x72.itch.io/dungeontileset-ii",
+  "",
+  "Monster & player art",
+  "Ever Growing Monster Pack by Negative Inspiration",
+  "CC BY-SA 4.0 - negative-inspiration.itch.io/negatives-ever-growing-monster-pack",
+  "",
+  "Built with Phaser & Three.js",
+].join("\n");
+
+/** DOM port of CreditsScene.ts - fulfills the attribution requirement both real-art packs
+ * carry (see CREDITS.md for the full detail this summarizes). */
+export function showCredits3D(root: HTMLElement): Modal {
+  const modal = createModal(root, 460, "Credits");
+  modal.panel.appendChild(el("div", { whiteSpace: "pre-line", fontSize: "13px", color: "#d0d0da", marginBottom: "16px" }, CREDITS_LINES));
+  modal.panel.appendChild(button("Close", () => modal.close(), { textAlign: "center", width: "100%" }));
+  return modal;
+}
+
 /** DOM port of GameOverScene.ts - same "died on level N, press Space to try again" flow. */
 export function showGameOver3D(root: HTMLElement, levelNumber: number, onContinue: () => void): Modal {
   const modal = createModal(root, 420, "");
