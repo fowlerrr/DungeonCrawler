@@ -1,8 +1,9 @@
 import * as THREE from "three";
 import type { WeaponArt } from "../../game/data/types";
 import { pxToWorld } from "../coords";
+import { EYE_HEIGHT } from "../constants3d";
 
-const SWIPE_DURATION_MS = 160;
+const SWIPE_DURATION_MS = 220;
 const PROJECTILE_SPEED_UNITS_PER_MS = 0.7 / 32; // matches Projectile.ts's px/ms, converted to world units
 
 /** Tints the (currently shared) slash/projectile meshes by weapon art category - a smaller
@@ -41,18 +42,23 @@ export class AttackVisuals3D {
   }
 
   /** Spawns a brief cone-shaped melee slash near the origin, facing outward, that fades and
-   * spins away over SWIPE_DURATION_MS. */
+   * spins away over SWIPE_DURATION_MS. Sized and positioned to read clearly in first person -
+   * the original version (smaller, lower, quicker) was reported as barely visible. */
   spawnSwipe(originPx: { x: number; y: number }, facing: { x: number; y: number }, art: WeaponArt = "sword"): void {
     const color = ART_COLOR[art] ?? ART_COLOR.sword;
     const mesh = new THREE.Mesh(
-      new THREE.ConeGeometry(0.18, 0.5, 3),
-      new THREE.MeshBasicMaterial({ color, transparent: true }),
+      new THREE.ConeGeometry(0.35, 0.9, 3),
+      new THREE.MeshBasicMaterial({ color, transparent: true, side: THREE.DoubleSide }),
     );
     const { x, z } = pxToWorld(originPx.x, originPx.y);
     const facingAngle = Math.atan2(facing.x, facing.y);
-    mesh.position.set(x + Math.sin(facingAngle) * 0.4, 0.55, z + Math.cos(facingAngle) * 0.4);
+    // Held close to eye height (rather than the old 0.55, well below where the first-person
+    // camera actually looks) and a bit further out, so it lands centered in view instead of
+    // flashing near the bottom edge of the screen.
+    mesh.position.set(x + Math.sin(facingAngle) * 0.55, EYE_HEIGHT - 0.1, z + Math.cos(facingAngle) * 0.55);
     mesh.rotation.x = Math.PI / 2;
     mesh.rotation.z = -facingAngle;
+    mesh.scale.setScalar(1.2);
     this.group.add(mesh);
 
     this.active.push({
@@ -61,9 +67,9 @@ export class AttackVisuals3D {
       durationMs: SWIPE_DURATION_MS,
       update: (t) => {
         const material = mesh.material as THREE.MeshBasicMaterial;
-        material.opacity = 1 - t;
-        mesh.rotation.z -= 0.06;
-        mesh.scale.setScalar(0.9 + t * 0.4);
+        material.opacity = 1 - t * t;
+        mesh.rotation.z -= 0.12;
+        mesh.scale.setScalar(1.2 + t * 1.1);
       },
     });
   }

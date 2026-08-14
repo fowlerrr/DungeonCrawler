@@ -66,7 +66,7 @@ export class MenuScene extends Phaser.Scene {
     this.addButton(BUTTON_START_Y + BUTTON_SPACING * 2, "How to Play", () => this.scene.launch(SCENE_KEYS.TUTORIAL));
     this.addButton(BUTTON_START_Y + BUTTON_SPACING * 3, "Options", () => this.scene.launch(SCENE_KEYS.OPTIONS));
     this.addButton(BUTTON_START_Y + BUTTON_SPACING * 4, "Credits", () => this.scene.launch(SCENE_KEYS.CREDITS));
-    this.addButton(BUTTON_START_Y + BUTTON_SPACING * 5, "Play in 3D (beta)", () => this.playIn3D());
+    this.addModeSelector(BUTTON_START_Y + BUTTON_SPACING * 5);
 
     if (!localStorage.getItem(TUTORIAL_SEEN_KEY)) {
       localStorage.setItem(TUTORIAL_SEEN_KEY, "1");
@@ -90,6 +90,40 @@ export class MenuScene extends Phaser.Scene {
     text.on("pointerover", () => text.setColor("#4ea8ff"));
     text.on("pointerout", () => text.setColor("#ffffff"));
     text.on("pointerdown", onClick);
+  }
+
+  /** Row of "2D / 3D" mode labels replacing the old single "Play in 3D" button - 2D is always the
+   * active (bold/highlighted) side here since this scene only ever runs in 2D mode; clicking 3D
+   * switches into it via playIn3D(). MenuScreen3D.ts renders the mirror image of this (3D bold,
+   * 2D clickable) so either menu always shows which mode you're in and lets you flip to the
+   * other one. */
+  private addModeSelector(y: number): void {
+    const activeColor = "#4ea8ff";
+    const inactiveColor = "#ffffff";
+    const dimColor = "#5a5a68";
+
+    const label2D = this.add
+      .text(0, y, "2D", { fontFamily: "monospace", fontSize: BUTTON_FONT_SIZE, fontStyle: "bold", color: activeColor })
+      .setOrigin(0.5);
+    const sep = this.add
+      .text(0, y, " / ", { fontFamily: "monospace", fontSize: BUTTON_FONT_SIZE, color: dimColor })
+      .setOrigin(0.5);
+    const label3D = this.add
+      .text(0, y, "3D", { fontFamily: "monospace", fontSize: BUTTON_FONT_SIZE, color: inactiveColor })
+      .setOrigin(0.5);
+
+    const totalWidth = label2D.width + sep.width + label3D.width;
+    let x = GAME_WIDTH / 2 - totalWidth / 2;
+    label2D.setX(x + label2D.width / 2);
+    x += label2D.width;
+    sep.setX(x + sep.width / 2);
+    x += sep.width;
+    label3D.setX(x + label3D.width / 2);
+
+    label3D.setInteractive({ useHandCursor: true });
+    label3D.on("pointerover", () => label3D.setColor(activeColor));
+    label3D.on("pointerout", () => label3D.setColor(inactiveColor));
+    label3D.on("pointerdown", () => this.playIn3D());
   }
 
   /** Tears down this Phaser game entirely and hands the #app container to the Three.js client -

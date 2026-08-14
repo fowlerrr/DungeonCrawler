@@ -12,10 +12,11 @@ export function isThreeDActive(): boolean {
 
 /** Entry point into 3D mode - shows MenuScreen3D first (mirroring the 2D game always landing on
  * MenuScene before any level exists), and only constructs Game3D once the player actually picks
- * New Game/Continue. `onBackTo2D` is called once, either from the menu's own "Back to 2D" button
- * or from Game3D's pause-menu "Quit to Menu" - the caller (MenuScene.ts, via a dynamic import so
- * this module never has to import anything from the Phaser side) is responsible for rebooting
- * Phaser in response. */
+ * New Game/Continue. `onBackTo2D` is called only from the menu's own "2D" mode-selector label -
+ * the caller (MenuScene.ts, via a dynamic import so this module never has to import anything from
+ * the Phaser side) is responsible for rebooting Phaser in response. Game3D's pause-menu "Quit to
+ * Menu" returns to MenuScreen3D instead (see startGame below), staying in 3D mode rather than
+ * bouncing back out to the 2D menu. */
 export function launch3D(container: HTMLElement, onBackTo2D: () => void): void {
   if (isThreeDActive()) return;
   showMenu();
@@ -40,7 +41,7 @@ export function launch3D(container: HTMLElement, onBackTo2D: () => void): void {
     game3D.onQuitToMenu = () => {
       game3D?.dispose();
       game3D = null;
-      onBackTo2D();
+      showMenu();
     };
     game3D.start(fresh);
     // Handy for poking at 3D game state from the browser console during development, mirroring

@@ -52,7 +52,15 @@ export class MenuScreen3D {
     buttons.appendChild(button("How to Play", () => showTutorial3D(this.root), { fontSize: "18px", color: THEME.text }));
     buttons.appendChild(button("Options", () => showOptions3D(this.root), { fontSize: "18px", color: THEME.text }));
     buttons.appendChild(button("Credits", () => showCredits3D(this.root), { fontSize: "18px", color: THEME.text }));
-    buttons.appendChild(button("Back to 2D", () => callbacks.onBackTo2D(), { fontSize: "14px", color: THEME.dim, marginTop: "10px" }));
+
+    // Mirror image of MenuScene.ts's "2D / 3D" mode selector - 3D is always the active
+    // (bold/highlighted) side here since this screen only ever shows in 3D mode; clicking 2D
+    // switches back via onBackTo2D().
+    const modeRow = el("div", { display: "flex", gap: "6px", alignItems: "center", justifyContent: "center", marginTop: "10px", fontSize: "14px" });
+    modeRow.appendChild(button("2D", () => callbacks.onBackTo2D(), { color: THEME.dim, padding: "0" }));
+    modeRow.appendChild(el("span", { color: THEME.faint }, "/"));
+    modeRow.appendChild(el("span", { color: THEME.accent, fontWeight: "bold" }, "3D"));
+    buttons.appendChild(modeRow);
     panel.appendChild(buttons);
 
     this.root.appendChild(panel);
