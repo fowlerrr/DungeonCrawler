@@ -47,7 +47,7 @@ export class AttackVisuals3D {
   spawnSwipe(originPx: { x: number; y: number }, facing: { x: number; y: number }, art: WeaponArt = "sword"): void {
     const color = ART_COLOR[art] ?? ART_COLOR.sword;
     const mesh = new THREE.Mesh(
-      new THREE.ConeGeometry(0.35, 0.9, 3),
+      new THREE.ConeGeometry(0.26, 0.7, 3),
       new THREE.MeshBasicMaterial({ color, transparent: true, side: THREE.DoubleSide }),
     );
     const { x, z } = pxToWorld(originPx.x, originPx.y);
@@ -58,7 +58,7 @@ export class AttackVisuals3D {
     mesh.position.set(x + Math.sin(facingAngle) * 0.55, EYE_HEIGHT - 0.1, z + Math.cos(facingAngle) * 0.55);
     mesh.rotation.x = Math.PI / 2;
     mesh.rotation.z = -facingAngle;
-    mesh.scale.setScalar(1.2);
+    mesh.scale.setScalar(1);
     this.group.add(mesh);
 
     this.active.push({
@@ -69,7 +69,7 @@ export class AttackVisuals3D {
         const material = mesh.material as THREE.MeshBasicMaterial;
         material.opacity = 1 - t * t;
         mesh.rotation.z -= 0.12;
-        mesh.scale.setScalar(1.2 + t * 1.1);
+        mesh.scale.setScalar(1 + t * 0.7);
       },
     });
   }
