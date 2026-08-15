@@ -1,0 +1,1336 @@
+<title>Dungeon Crawler: A Field Guide to the Code</title>
+<style>
+  :root {
+    --bg: #eef0f4;
+    --surface: #ffffff;
+    --surface-2: #e4e7ee;
+    --text: #201c2b;
+    --text-dim: #5b5570;
+    --border: #d3d6e0;
+    --ember: #c9662a;
+    --ember-soft: rgba(201, 102, 42, 0.12);
+    --teal: #2f8f86;
+    --teal-soft: rgba(47, 143, 134, 0.12);
+    --code-text: #201c2b;
+    --shadow: 0 10px 30px rgba(30, 20, 10, 0.08);
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16131d;
+      --surface: #211d2b;
+      --surface-2: #2a2438;
+      --text: #eae6f0;
+      --text-dim: #a49bb8;
+      --border: #3a3350;
+      --ember: #e8935a;
+      --ember-soft: rgba(232, 147, 90, 0.14);
+      --teal: #6cc4bb;
+      --teal-soft: rgba(108, 196, 187, 0.14);
+      --code-text: #e7e2f2;
+      --shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16131d;
+    --surface: #211d2b;
+    --surface-2: #2a2438;
+    --text: #eae6f0;
+    --text-dim: #a49bb8;
+    --border: #3a3350;
+    --ember: #e8935a;
+    --ember-soft: rgba(232, 147, 90, 0.14);
+    --teal: #6cc4bb;
+    --teal-soft: rgba(108, 196, 187, 0.14);
+    --code-text: #e7e2f2;
+    --shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.65;
+  }
+  a { color: var(--ember); }
+  ::selection { background: var(--ember-soft); }
+
+  .app { display: flex; min-height: 100vh; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar {
+    width: 290px;
+    flex: 0 0 290px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 22px 18px 40px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 4px 4px 4px;
+  }
+  .brand-mark { font-size: 22px; }
+  .brand-name {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.2px;
+  }
+  .brand-sub {
+    margin: 2px 4px 22px;
+    color: var(--text-dim);
+    font-size: 12.5px;
+    letter-spacing: 0.3px;
+  }
+  .part-label {
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    color: var(--text-dim);
+    margin: 22px 8px 8px;
+    font-weight: 700;
+  }
+  .part-label:first-of-type { margin-top: 6px; }
+  .toc { list-style: none; margin: 0; padding: 0; }
+  .toc li { margin: 1px 0; }
+  .toc a {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    text-decoration: none;
+    color: var(--text);
+    padding: 7px 8px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .toc a .num {
+    font-variant-numeric: tabular-nums;
+    color: var(--text-dim);
+    font-size: 12px;
+    width: 16px;
+    flex: 0 0 auto;
+  }
+  .toc a:hover { background: var(--surface-2); }
+  .toc a.active {
+    background: var(--ember-soft);
+    color: var(--ember);
+    font-weight: 700;
+  }
+  .toc a.active .num { color: var(--ember); }
+
+  .sidebar-foot {
+    margin: 26px 8px 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .nav-toggle {
+    display: none;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 40;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: var(--shadow);
+  }
+
+  /* ---------- Main content ---------- */
+  main.reader {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    justify-content: center;
+    padding: 56px 28px 120px;
+  }
+  .chapter { display: none; max-width: 700px; width: 100%; }
+  .chapter.active { display: block; }
+
+  .crumb {
+    font-size: 12.5px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--ember);
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .crumb .of { color: var(--text-dim); font-weight: 500; text-transform: none; letter-spacing: 0; }
+  h1.chapter-title {
+    font-family: var(--serif);
+    font-size: clamp(28px, 4vw, 38px);
+    line-height: 1.15;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+  .lede {
+    font-size: 18px;
+    color: var(--text-dim);
+    margin: 0 0 30px;
+    text-wrap: pretty;
+  }
+  .chapter h2 {
+    font-family: var(--serif);
+    font-size: 23px;
+    margin: 42px 0 12px;
+    text-wrap: balance;
+  }
+  .chapter h3 {
+    font-family: var(--serif);
+    font-size: 18px;
+    margin: 28px 0 10px;
+  }
+  .chapter p { margin: 0 0 16px; max-width: 66ch; }
+  .chapter ul, .chapter ol { margin: 0 0 16px; padding-left: 22px; }
+  .chapter li { margin: 0 0 6px; }
+  .chapter strong { color: var(--text); }
+  code.inline {
+    font-family: var(--mono);
+    background: var(--surface-2);
+    padding: 1.5px 6px;
+    border-radius: 5px;
+    font-size: 0.88em;
+    color: var(--code-text);
+  }
+
+  pre.code {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 0 0 8px;
+  }
+  pre.code code {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--code-text);
+    white-space: pre;
+  }
+  .code-cap {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin: 0 0 22px;
+  }
+  .code-cap .path { font-family: var(--mono); color: var(--teal); }
+
+  .whats-happening {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--teal);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 18px;
+    margin: 0 0 26px;
+  }
+  .whats-happening .label {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    color: var(--teal);
+    margin-bottom: 8px;
+  }
+  .whats-happening ul { margin: 0; padding-left: 20px; }
+  .whats-happening li { margin-bottom: 6px; font-size: 15px; }
+
+  details.deepdive {
+    background: var(--ember-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px 18px;
+    margin: 0 0 26px;
+  }
+  details.deepdive summary {
+    cursor: pointer;
+    font-weight: 700;
+    padding: 12px 0;
+    color: var(--ember);
+    font-size: 14.5px;
+  }
+  details.deepdive[open] summary { padding-bottom: 4px; }
+  details.deepdive p:last-child { margin-bottom: 14px; }
+
+  figure.diagram {
+    margin: 8px 0 30px;
+    padding: 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  figure.diagram svg { display: block; width: 100%; height: auto; color: var(--text); }
+  figure.diagram .accent { color: var(--ember); }
+  figure.diagram .accent2 { color: var(--teal); }
+  figcaption {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 10px;
+    text-align: center;
+  }
+  svg text { font-family: var(--sans); }
+
+  .rarity-ladder { display: flex; flex-direction: column; gap: 10px; margin: 0 0 28px; }
+  .rarity-row { display: flex; align-items: center; gap: 12px; }
+  .rarity-chip {
+    width: 96px; flex: 0 0 auto;
+    font-size: 12.5px; font-weight: 700;
+    padding: 4px 0; text-align: center; border-radius: 6px;
+  }
+  .rarity-bar-track { flex: 1; background: var(--surface-2); border-radius: 6px; height: 14px; overflow: hidden; }
+  .rarity-bar-fill { height: 100%; border-radius: 6px 0 0 6px; }
+  .rarity-weight { font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--text-dim); width: 56px; text-align: right; }
+
+  table.spec { width: 100%; border-collapse: collapse; margin: 0 0 26px; font-size: 14.5px; }
+  table.spec th, table.spec td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  table.spec th { color: var(--text-dim); font-weight: 700; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.4px; }
+  table.spec td.mono, table.spec th.mono { font-family: var(--mono); }
+
+  .chapter-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 56px;
+    padding-top: 22px;
+    border-top: 1px solid var(--border);
+  }
+  .chapter-nav a {
+    flex: 1 1 0;
+    text-decoration: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--text);
+    background: var(--surface);
+  }
+  .chapter-nav a:hover { border-color: var(--ember); }
+  .chapter-nav .dir { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-dim); }
+  .chapter-nav .ttl { font-family: var(--serif); font-size: 15.5px; margin-top: 2px; }
+  .chapter-nav a.next { text-align: right; margin-left: auto; }
+  .chapter-nav .spacer { flex: 1 1 0; }
+
+  .try-box {
+    background: var(--teal-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 0 0 20px;
+  }
+  .try-box .label {
+    font-size: 11.5px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;
+    color: var(--teal); margin-bottom: 6px;
+  }
+
+  @media (max-width: 880px) {
+    .nav-toggle { display: block; }
+    .sidebar {
+      position: fixed;
+      left: 0; top: 0;
+      transform: translateX(-104%);
+      transition: transform 0.22s ease;
+      z-index: 39;
+      box-shadow: var(--shadow);
+      width: 82vw;
+      max-width: 320px;
+    }
+    .sidebar.open { transform: translateX(0); }
+    main.reader { padding: 78px 18px 100px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar { transition: none; }
+  }
+</style>
+
+<div class="app">
+  <button class="nav-toggle" id="navToggle" type="button" aria-expanded="false" aria-controls="sidebar">☰ Map</button>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="brand-mark">🗺️</span><span class="brand-name">Field Guide to the Code</span></div>
+    <div class="brand-sub">How <em>Dungeon Crawler</em> actually works, room by room.</div>
+
+    <div class="part-label">Part I — The World Beneath</div>
+    <ul class="toc" id="tocList">
+      <li><a href="#ch1"><span class="num">01</span><span>Welcome: One Brain, Two Skins</span></a></li>
+      <li><a href="#ch2"><span class="num">02</span><span>Building the Dungeon</span></a></li>
+      <li><a href="#ch3"><span class="num">03</span><span>Talking in Coordinates</span></a></li>
+    </ul>
+
+    <div class="part-label">Part II — The Rules of the Game</div>
+    <ul class="toc">
+      <li><a href="#ch4"><span class="num">04</span><span>Player, Monsters, and .logic</span></a></li>
+      <li><a href="#ch5"><span class="num">05</span><span>Fighting: The Combat System</span></a></li>
+      <li><a href="#ch6"><span class="num">06</span><span>Loot and Gear</span></a></li>
+      <li><a href="#ch7"><span class="num">07</span><span>Growing Stronger, Saving Up</span></a></li>
+    </ul>
+
+    <div class="part-label">Part III — Bringing It to Life</div>
+    <ul class="toc">
+      <li><a href="#ch8"><span class="num">08</span><span>The Game Loop and Input</span></a></li>
+      <li><a href="#ch9"><span class="num">09</span><span>Drawing the World in 2D</span></a></li>
+      <li><a href="#ch10"><span class="num">10</span><span>Drawing the World in 3D</span></a></li>
+      <li><a href="#ch11"><span class="num">11</span><span>Menus and Touch Controls</span></a></li>
+    </ul>
+
+    <div class="part-label">Part IV — The Full Map</div>
+    <ul class="toc">
+      <li><a href="#ch12"><span class="num">12</span><span>How It All Connects</span></a></li>
+      <li><a href="#ch13"><span class="num">13</span><span>Your Turn</span></a></li>
+    </ul>
+
+    <div class="sidebar-foot">Every snippet on these pages is real code from this project's <code class="inline" style="font-size:11px;">src/</code> folder — nothing invented for the tutorial.</div>
+  </aside>
+
+  <main class="reader">
+
+    <!-- ================= CHAPTER 1 ================= -->
+    <section class="chapter" id="ch1">
+      <div class="crumb">Part I <span class="of">· Chapter 1 of 13</span></div>
+      <h1 class="chapter-title">Welcome: One Brain, Two Skins</h1>
+      <p class="lede">Dungeon Crawler is one game you can play two totally different ways — as a flat, top-down 2D dungeon crawl, or as a first-person 3D one. Here's the trick: it's not two games. It's one set of rules wearing two different costumes.</p>
+
+      <p>Open up the project's <code class="inline">src/</code> folder and you'll find three main directories:</p>
+      <ul>
+        <li><code class="inline">src/game/</code> — the <strong>rules</strong>. Maze generation, combat math, items, saving. Plain TypeScript. No drawing, no graphics library, nothing that knows what a pixel or a polygon is.</li>
+        <li><code class="inline">src/phaser/</code> — the <strong>2D skin</strong>. Uses a library called Phaser to turn those rules into sprites you see from above.</li>
+        <li><code class="inline">src/three/</code> — the <strong>3D skin</strong>. Uses a library called Three.js to turn the exact same rules into a first-person 3D world.</li>
+      </ul>
+
+      <p>Why split it up like this? Because a monster's health, a maze's layout, and how much damage a sword does shouldn't care whether you're looking at them from above or walking through them in first person. Those are <em>facts about the game</em>, not facts about how it looks. Keeping them separate means a bug fix or new feature in the rules automatically works in both views — you'll actually see this happen in a later chapter, where one bug fix in <code class="inline">src/game/</code> fixed the exact same problem in <em>both</em> the 2D and 3D clients at once.</p>
+
+      <figure class="diagram" role="img" aria-label="Diagram showing main.ts booting the 2D Phaser skin, which can swap into the 3D Three.js skin, and both skins reading from and calling into the shared src/game rules layer.">
+        <svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <!-- main.ts -->
+          <rect x="250" y="14" width="140" height="42" rx="8" fill="none" stroke="currentColor" opacity="0.7"/>
+          <text x="320" y="40" text-anchor="middle" font-size="13" fill="currentColor">main.ts</text>
+
+          <!-- phaser box -->
+          <rect x="40" y="104" width="200" height="60" rx="8" fill="none" stroke="currentColor"/>
+          <text x="140" y="128" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">src/phaser/</text>
+          <text x="140" y="146" text-anchor="middle" font-size="11.5" fill="currentColor" opacity="0.7">2D skin</text>
+
+          <!-- three box -->
+          <rect x="400" y="104" width="200" height="60" rx="8" fill="none" stroke="currentColor"/>
+          <text x="500" y="128" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">src/three/</text>
+          <text x="500" y="146" text-anchor="middle" font-size="11.5" fill="currentColor" opacity="0.7">3D skin</text>
+
+          <!-- game box -->
+          <rect x="190" y="224" width="260" height="60" rx="8" fill="var(--ember-soft)" class="accent" stroke="currentColor"/>
+          <text x="320" y="248" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">src/game/</text>
+          <text x="320" y="266" text-anchor="middle" font-size="11.5" fill="currentColor" opacity="0.7">rules &amp; data, no rendering</text>
+
+          <!-- main -> phaser -->
+          <line x1="290" y1="56" x2="160" y2="102" stroke="currentColor" marker-end="url(#arrow1)"/>
+          <text x="205" y="82" font-size="11" fill="currentColor">bootPhaser()</text>
+
+          <!-- phaser -> three dashed -->
+          <line x1="240" y1="120" x2="398" y2="120" stroke="currentColor" stroke-dasharray="4 4" marker-end="url(#arrow1)"/>
+          <text x="320" y="112" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.8">"3D" swaps the skin</text>
+
+          <!-- phaser -> game -->
+          <line x1="150" y1="164" x2="260" y2="222" stroke="currentColor" marker-end="url(#arrow1)"/>
+          <!-- three -> game -->
+          <line x1="490" y1="164" x2="390" y2="222" stroke="currentColor" marker-end="url(#arrow1)"/>
+          <text x="320" y="200" text-anchor="middle" font-size="11" fill="currentColor">both read state &amp; call the same functions</text>
+        </svg>
+        <figcaption>The page always boots the 2D skin first. Picking "3D" from the menu swaps <code class="inline">src/phaser/</code> out for <code class="inline">src/three/</code> — but underneath, both skins are driving the exact same <code class="inline">src/game/</code> rules.</figcaption>
+      </figure>
+
+      <h2>How to read this guide</h2>
+      <p>Each chapter builds on the last, starting with the simplest, most self-contained ideas (how a maze gets built) and working up to the ideas that tie everything together (how the whole app boots up and switches between 2D and 3D). You can jump around using the map on the left, but it's built to be read in order the first time through.</p>
+      <p>Every code snippet you'll see is copied straight from this project's real source files — you can open them yourself in <code class="inline">src/</code> and find the exact lines. Boxes titled <strong>What's happening</strong> translate the code into plain English. Boxes titled <strong>Go deeper</strong> are optional — expand them if you're curious, skip them if you're not.</p>
+
+      <div class="chapter-nav">
+        <span class="dir-empty"></span>
+        <a class="next" href="#ch2"><div class="dir">Next →</div><div class="ttl">Building the Dungeon</div></a>
+      </div>
+    </section>
+
+    <!-- ================= CHAPTER 2 ================= -->
+    <section class="chapter" id="ch2">
+      <div class="crumb">Part I <span class="of">· Chapter 2 of 13</span></div>
+      <h1 class="chapter-title">Building the Dungeon</h1>
+      <p class="lede">Every time you start a new level, the game builds a brand-new maze from scratch — corridors, locked vaults, keys, all of it. It does this with a short pipeline of small, focused steps, each living in its own file under <code class="inline">src/game/maze/</code>.</p>
+
+      <h2>Step 0: a dice that always rolls the same way</h2>
+      <p>Mazes need randomness, but <code class="inline">Math.random()</code> can't be controlled — you can't ask it to reproduce the exact same "random" maze twice. So the project has its own tiny random number generator, <code class="inline">Rng</code>, that starts from a <strong>seed</strong> number:</p>
+      <pre class="code"><code>export class Rng {
+  constructor(seed: number) { ... }
+  next(): number       // a float between 0 and 1
+  nextInt(max: number): number
+  pick&lt;T&gt;(items: readonly T[]): T
+}</code></pre>
+      <p class="code-cap"><span class="path">src/game/maze/rng.ts</span></p>
+      <div class="whats-happening">
+        <div class="label">What's happening</div>
+        <ul>
+          <li>Give it the same seed number twice, and <code class="inline">next()</code> produces the exact same sequence of "random" numbers both times.</li>
+          <li>That means <code class="inline">generateLevel(42, ...)</code> always builds the identical maze — handy for testing, and it's the reason the whole generation pipeline below can be trusted to behave predictably.</li>
+        </ul>
+      </div>
+
+      <h2>Step 1: carve a perfect maze</h2>
+      <p>The first real step is <code class="inline">generateBaseMaze()</code>. Picture standing in a grid of rooms with every wall still up. You dig into a random neighboring room, mark it visited, and repeat — always digging into <em>unvisited</em> rooms only. When you get stuck (every neighbor already visited), you backtrack to the last room that still has an unvisited neighbor and keep digging from there.</p>
+      <pre class="code"><code>while (stack.length > 0) {
+  const current = stack[stack.length - 1];
+  const candidates = adjacency.get(current).filter(e =&gt; !visited.has(e.other));
+  if (candidates.length === 0) { stack.pop(); continue; }   // dead end — backtrack
+  const chosen = rng.pick(candidates);
+  chosen.edge.open = true;                                   // knock the wall down
+  visited.add(chosen.other);
+  stack.push(chosen.other);
+}</code></pre>
+      <p class="code-cap"><span class="path">src/game/maze/generator.ts</span> — simplified</p>
+      <div class="whats-happening">
+        <div class="label">What's happening</div>
+        <ul>
+          <li>This is a classic algorithm called a <strong>randomized depth-first search</strong> (or "recursive backtracker") — dig forward randomly, back up when stuck.</li>
+          <li>The <code class="inline">stack</code> array is standing in for backtracking — normally you'd write this with a function that calls itself, but a big maze could call itself so many times the program would crash. Using an array as an explicit stack does the same job without that risk.</li>
+          <li>The result is a <strong>perfect maze</strong>: every room is reachable, and there's exactly one path between any two rooms — no loops yet.</li>
+        </ul>
+      </div>
+
+      <h2>Step 2: knock down a few extra walls</h2>
+      <p>A perfect maze with zero loops feels like a single long, winding hallway — not much fun to explore. So <code class="inline">braidMaze()</code> goes back over every wall that's still standing and, for each one, has a chance (<code class="inline">braidFactor</code>, like 0.3 for 30%) of knocking it down too:</p>
+      <pre class="code"><code>for (const edge of graph.edges) {
+  if (!edge.open &amp;&amp; rng.next() &lt; braidFactor) {
+    edge.open = true;
+  }
+}</code></pre>
+      <p class="code-cap"><span class="path">src/game/maze/braiding.ts</span></p>
+      <p>This is always safe to do — every wall still standing already has <em>some</em> other path around it (that's what "every room is reachable" from Step 1 guarantees), so opening more walls can only add shortcuts and loops, never break anything.</p>
+
+      <h2>Step 3: lock a few dead ends behind doors</h2>
+      <p>Now for the vaults. The game needs to pick a few walls to turn into <strong>locked doors</strong>, each one sealing off a small dead-end area (a "vault") that you can only reach once you've found the matching key elsewhere in the maze.</p>
+      <p>The tricky part: lock the <em>wrong</em> wall, and you could accidentally seal the exit — or seal away a key needed to open some other door — making the level impossible to finish. <code class="inline">placeLocks()</code> avoids this with a clever trick from graph theory:</p>
+      <div class="whats-happening">
+        <div class="label">What's happening</div>
+        <ul>
+          <li>A <strong>bridge</strong> is an edge that is the <em>only</em> path between two parts of the maze — remove it, and those parts become totally disconnected from each other.</li>
+          <li><code class="inline">findBridges()</code> finds every bridge in the maze using a well-known algorithm (Tarjan's bridge-finding algorithm). Only bridges are ever candidates for a locked door — locking a non-bridge wall wouldn't actually block anything, since there'd always be another way around.</li>
+          <li>For each candidate bridge, the game checks: how many rooms would this seal off? If it's a small, self-contained pocket (4 rooms or fewer) that doesn't contain the exit or another door's key, it becomes a real locked door — and the key gets dropped somewhere else in the maze.</li>
+        </ul>
+      </div>
+      <details class="deepdive">
+        <summary>Go deeper: how does the game find a "bridge"?</summary>
+        <p>It's a walk through the maze (a depth-first search) that tracks two numbers per room: the order it was <em>discovered</em> in, and the <em>lowest</em> discovery number reachable from it by any route that doesn't just backtrack the way it came. If a neighboring room can't "reach back" to anything before the current room through some other path, the wall between them must be the only connection — a bridge. It's implemented with an explicit stack (same reason as Step 1) so it doesn't blow up on a big maze.</p>
+      </details>
+
+      <h2>Step 4: double-check it's actually solvable</h2>
+      <p>Even with all that care, <code class="inline">validateSolvable()</code> runs one more independent check before the level is accepted — it walks the maze from the entrance, remembering not just which room it's in but which keys it's picked up along the way, and confirms there's some route to the exit. If that check ever fails, <code class="inline">level.ts</code> just throws the whole maze away and generates a new one with a different seed, up to 10 times, before falling back to a maze with no locks at all (which is always solvable, since it's just the base maze from Step 1 and 2).</p>
+
+      <h2>Step 5: turn it into an actual grid</h2>
+      <p>Everything so far has been abstract — "rooms" and "walls between them," not pixels. The last step, <code class="inline">rasterizeMaze()</code>, converts that into a real 2D grid of tiles using a neat trick: a maze of <em>N</em> rooms across becomes a tile grid of <em>2N+1</em> tiles across. Every room becomes a floor tile at an odd position; every open wall between two rooms becomes a floor tile squeezed in between them; everything else stays a wall.</p>
+
+      <figure class="diagram" role="img" aria-label="Vertical pipeline diagram: Rng seed flows into generateBaseMaze, then braidMaze, then placeLocks, then validateSolvable, then rasterizeMaze, producing the final tile grid.">
+        <svg viewBox="0 0 460 560" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <!-- nodes -->
+          <g font-size="13" text-anchor="middle">
+            <rect x="130" y="10" width="200" height="46" rx="8" fill="none" stroke="currentColor" opacity="0.7"/>
+            <text x="230" y="38" fill="currentColor">Rng(seed)</text>
+
+            <rect x="110" y="106" width="240" height="46" rx="8" fill="none" stroke="currentColor"/>
+            <text x="230" y="134" fill="currentColor">generateBaseMaze()</text>
+
+            <rect x="110" y="202" width="240" height="46" rx="8" fill="none" stroke="currentColor"/>
+            <text x="230" y="230" fill="currentColor">braidMaze()</text>
+
+            <rect x="110" y="298" width="240" height="46" rx="8" fill="none" stroke="currentColor"/>
+            <text x="230" y="326" fill="currentColor">placeLocks()</text>
+
+            <rect x="110" y="394" width="240" height="46" rx="8" fill="none" stroke="currentColor"/>
+            <text x="230" y="422" fill="currentColor">validateSolvable()</text>
+
+            <rect x="65" y="490" width="330" height="52" rx="8" fill="var(--ember-soft)" class="accent" stroke="currentColor"/>
+            <text x="230" y="512" fill="currentColor" font-weight="700">rasterizeMaze()</text>
+            <text x="230" y="530" fill="currentColor" font-size="11" opacity="0.75">→ the TileGrid the game actually renders</text>
+          </g>
+          <g stroke="currentColor" fill="none">
+            <line x1="230" y1="56" x2="230" y2="104" marker-end="url(#arrow2)"/>
+            <line x1="230" y1="152" x2="230" y2="200" marker-end="url(#arrow2)"/>
+            <line x1="230" y1="248" x2="230" y2="296" marker-end="url(#arrow2)"/>
+            <line x1="230" y1="344" x2="230" y2="392" marker-end="url(#arrow2)"/>
+            <line x1="230" y1="440" x2="230" y2="488" marker-end="url(#arrow2)"/>
+          </g>
+          <g font-size="11" fill="currentColor" opacity="0.75" text-anchor="middle">
+            <text x="230" y="88">carves tunnels, no loops yet</text>
+            <text x="230" y="184">knocks down some extra walls</text>
+            <text x="230" y="280">seals a few dead ends behind doors + keys</text>
+            <text x="230" y="376">fails? try a new seed, up to 10 times</text>
+          </g>
+        </svg>
+        <figcaption>Everything happens in this order, every time a level is built — see <code class="inline">generateLevel()</code> in <code class="inline">src/game/maze/level.ts</code>.</figcaption>
+      </figure>
+
+      <div class="try-box">
+        <div class="label">Try it yourself</div>
+        In <code class="inline">src/game/systems/LevelConfig.ts</code>, the maze's <code class="inline">braidFactor</code> grows slightly with level number. Try hard-coding it to <code class="inline">0.05</code> (almost no loops — a maze-y maze) or <code class="inline">0.8</code> (loops everywhere — an open room) and see how differently the same generator feels to walk through.
+      </div>
+
+      <div class="chapter-nav">
+        <a class="prev" href="#ch1"><div class="dir">← Previous</div><div class="ttl">Welcome: One Brain, Two Skins</div></a>
+        <a class="next" href="#ch3"><div class="dir">Next →</div><div class="ttl">Talking in Coordinates</div></a>
+      </div>
+    </section>
+
+    <!-- ================= CHAPTER 3 ================= -->
+    <section class="chapter" id="ch3">
+      <div class="crumb">Part I <span class="of">· Chapter 3 of 13</span></div>
+      <h1 class="chapter-title">Talking in Coordinates</h1>
+      <p class="lede">The last chapter ended with rooms turning into tiles. This short chapter covers a detail that trips people up constantly once rendering gets involved: the game actually uses <em>three</em> different coordinate systems, depending on what it's talking about.</p>
+
+      <ul>
+        <li><strong>Cell space</strong> — a room in the maze, like <code class="inline">{x: 2, y: 1}</code>. This is what the generator from Chapter 2 works in.</li>
+        <li><strong>Tile space</strong> — a square in the rendered grid, like <code class="inline">{tx: 5, ty: 3}</code>. Remember the "2N+1" trick — tile coordinates aren't the same numbers as cell coordinates.</li>
+        <li><strong>Pixel space</strong> — an actual on-screen position, like <code class="inline">{x: 176, y: 112}</code>, found by multiplying a tile coordinate by <code class="inline">TILE_SIZE</code> (32 pixels).</li>
+      </ul>
+
+      <figure class="diagram" role="img" aria-label="Three boxes showing a cell coordinate converting to a tile coordinate by doubling and adding one, then converting to a pixel coordinate by multiplying by 32.">
+        <svg viewBox="0 0 640 190" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <g text-anchor="middle" font-size="13">
+            <rect x="10" y="60" width="170" height="66" rx="8" fill="none" stroke="currentColor"/>
+            <text x="95" y="86" fill="currentColor" font-weight="700">Cell (2, 1)</text>
+            <text x="95" y="104" fill="currentColor" font-size="11" opacity="0.75">a room in the maze</text>
+
+            <rect x="235" y="60" width="170" height="66" rx="8" fill="none" stroke="currentColor"/>
+            <text x="320" y="86" fill="currentColor" font-weight="700">Tile (5, 3)</text>
+            <text x="320" y="104" fill="currentColor" font-size="11" opacity="0.75">a square in the grid</text>
+
+            <rect x="460" y="60" width="170" height="66" rx="8" fill="var(--ember-soft)" class="accent" stroke="currentColor"/>
+            <text x="545" y="86" fill="currentColor" font-weight="700">Pixel (176, 112)</text>
+            <text x="545" y="104" fill="currentColor" font-size="11" opacity="0.75">on-screen position</text>
+          </g>
+          <line x1="180" y1="93" x2="233" y2="93" stroke="currentColor" marker-end="url(#arrow3)"/>
+          <text x="207" y="76" text-anchor="middle" font-size="11" fill="currentColor">×2, +1</text>
+          <line x1="405" y1="93" x2="458" y2="93" stroke="currentColor" marker-end="url(#arrow3)"/>
+          <text x="432" y="76" text-anchor="middle" font-size="11" fill="currentColor">×32</text>
+        </svg>
+        <figcaption>Room (2,1) becomes tile (5,3) via the doubled-grid trick from Chapter 2, then pixel (176,112) via <code class="inline">TILE_SIZE</code>.</figcaption>
+      </figure>
+
+      <p>All these conversions live in one file, so nobody has to redo the math by hand:</p>
+      <pre class="code"><code>export function cellToTile(c: Cell): { tx: number; ty: number }
+export function tileCenterPx(tx: number, ty: number): { x: number; y: number }
+export function cellCenterPx(c: Cell): { x: number; y: number }
+export function pxToTile(x: number, y: number): { tx: number; ty: number }</code></pre>
+      <p class="code-cap"><span class="path">src/game/maze/raster.ts</span></p>
+
+      <h2>Can I see that? (Line of sight)</h2>
+      <p>Coordinates matter most when the game needs to answer a question like: "can this arrow actually reach that goblin, or is there a wall in the way?" <code class="inline">hasLineOfSight()</code> answers this by sampling points along the straight line between two pixel positions — every quarter-tile — and checking each one lands on a floor tile, not a wall:</p>
+      <pre class="code"><code>for (let i = 1; i &lt; steps; i++) {
+  const t = i / steps;
+  const x = fromX + (toX - fromX) * t;
+  const y = fromY + (toY - fromY) * t;
+  const { tx, ty } = pxToTile(x, y);
+  if (grid[ty][tx] !== TileType.Floor) return false;   // hit a wall along the way
+}
+return true;</code></pre>
+      <p class="code-cap"><span class="path">src/game/maze/lineOfSight.ts</span> — simplified</p>
+      <p>A close cousin, <code class="inline">raycastDistance()</code>, does almost the same walk but in a <em>direction</em> instead of toward a fixed point — it's what makes a missed arrow stop exactly at the wall it would hit, instead of sailing straight through it. (This was an actual bug fixed during development — you'll hear more about it in Chapter 5.)</p>
+
+      <div class="chapter-nav">
+        <a class="prev" href="#ch2"><div class="dir">← Previous</div><div class="ttl">Building the Dungeon</div></a>
+        <a class="next" href="#ch4"><div class="dir">Next →</div><div class="ttl">Player, Monsters, and .logic</div></a>
+      </div>
+    </section>
+
+    <!-- ================= CHAPTER 4 ================= -->
+    <section class="chapter" id="ch4">
+      <div class="crumb">Part II <span class="of">· Chapter 4 of 13</span></div>
+      <h1 class="chapter-title">Player, Monsters, and <code class="inline" style="font-size:0.75em;">.logic</code></h1>
+      <p class="lede">Time to meet the actual characters. And right away you'll run into the single most important design pattern in this whole codebase — one you'll see reused, unchanged, all the way through both the 2D and 3D skins.</p>
+
+      <h2>Surprisingly small classes</h2>
+      <p>Here's the <em>entire</em> <code class="inline">Player</code> class:</p>
+      <pre class="code"><code>export class Player {
+  hp: number;
+  maxHp: number;
+  x = 0;
+  y = 0;
+  lastAttackAt = -Infinity;
+  lastHitAt = -Infinity;
+
+  constructor(maxHp: number) {
+    this.maxHp = maxHp;
+    this.hp = maxHp;
+  }
+}</code></pre>
+      <p class="code-cap"><span class="path">src/game/entities/Player.ts</span></p>
+      <p>No facing direction, no drawing code, no sprite, no controls. Just health and position. The <code class="inline">Monster</code> class is just as bare — health, damage, position, and a computed <code class="inline">isDead</code> flag:</p>
+      <pre class="code"><code>export class Monster {
+  readonly defId: string;
+  hp: number;
+  maxHp: number;
+  damage: number;
+  x = 0;
+  y = 0;
+
+  get isDead(): boolean { return this.hp &lt;= 0; }
+}</code></pre>
+      <p class="code-cap"><span class="path">src/game/entities/Monster.ts</span> — trimmed</p>
+
+      <h2>The pattern: one brain, worn by two bodies</h2>
+      <p>So where does the player's on-screen body actually live? In the 2D skin, a class called <code class="inline">PlayerSprite</code> owns the real Phaser sprite and physics body — and holds a reference to a plain <code class="inline">Player</code> as <code class="inline">this.logic</code>. Every time the sprite moves, it copies its new position back into <code class="inline">logic.x</code>/<code class="inline">logic.y</code>. In the 3D skin, <code class="inline">PlayerController3D</code> does the exact same job for a Three.js camera and mesh instead.</p>
+
+      <figure class="diagram" role="img" aria-label="Diagram showing a shared plain Player object in the center, with PlayerSprite in Phaser on one side and PlayerController3D in Three.js on the other, each reading and writing the same logic object every frame.">
+        <svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <rect x="210" y="14" width="220" height="66" rx="8" fill="var(--ember-soft)" class="accent" stroke="currentColor"/>
+          <text x="320" y="40" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Player { hp, x, y }</text>
+          <text x="320" y="58" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.75">plain data — src/game/entities/</text>
+
+          <rect x="30" y="200" width="230" height="66" rx="8" fill="none" stroke="currentColor"/>
+          <text x="145" y="226" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">PlayerSprite</text>
+          <text x="145" y="244" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.75">Phaser sprite + physics body</text>
+
+          <rect x="380" y="200" width="230" height="66" rx="8" fill="none" stroke="currentColor"/>
+          <text x="495" y="226" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">PlayerController3D</text>
+          <text x="495" y="244" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.75">Three.js camera + mesh</text>
+
+          <line x1="270" y1="80" x2="165" y2="198" stroke="currentColor" marker-end="url(#arrow4)"/>
+          <line x1="180" y1="198" x2="285" y2="80" stroke="currentColor" marker-end="url(#arrow4)"/>
+          <line x1="370" y1="80" x2="475" y2="198" stroke="currentColor" marker-end="url(#arrow4)"/>
+          <line x1="490" y1="198" x2="385" y2="80" stroke="currentColor" marker-end="url(#arrow4)"/>
+          <text x="130" y="145" font-size="10.5" fill="currentColor" text-anchor="middle" opacity="0.85">moves via tween ↔ copies x/y in</text>
+          <text x="500" y="145" font-size="10.5" fill="currentColor" text-anchor="middle" opacity="0.85">moves camera/mesh ↔ copies x/y in</text>
+        </svg>
+        <figcaption>Same idea, two skins: whichever one is active reads and writes the identical <code class="inline">Player</code> object every frame.</figcaption>
+      </figure>
+
+      <div class="whats-happening">
+        <div class="label">Why bother?</div>
+        <ul>
+          <li>Anything that needs to know "is the player near this monster?" or "what's the player's HP?" can ask the plain <code class="inline">Player</code> object, without needing to know or care whether Phaser or Three.js is currently running.</li>
+          <li>This is exactly how <code class="inline">Combat.ts</code> (next chapter) works against <em>both</em> skins with zero duplicated code.</li>
+        </ul>
+      </div>
+
+      <h2>Same template, different toughness</h2>
+      <p>Monsters are built from a shared template (a <code class="inline">MonsterDef</code> — "a goblin has 12 HP and deals 3 damage") plus two multipliers supplied by the current level's difficulty settings:</p>
+      <pre class="code"><code>constructor(def: MonsterDef, hpMult = 1, damageMult = 1) {
+  this.defId = def.id;
+  this.maxHp = Math.round(def.baseHp * hpMult);
+  this.hp = this.maxHp;
+  this.damage = Math.round(def.baseDamage * damageMult);
+}</code></pre>
+      <p class="code-cap"><span class="path">src/game/entities/Monster.ts</span></p>
+      <p>So the goblin template you fight on level 1 is the exact same data as the goblin template on level 20 — it's just multiplied up to be much tougher by then. The full roster spans six tiers (Slime and Goblin at tier 1, all the way to a Succubus and a Magma Golem at tier 6), unlocking gradually — and once a tier unlocks, it never goes away, so a deep level can still throw an easy Slime at you alongside something much scarier.</p>
+
+      <div class="chapter-nav">
+        <a class="prev" href="#ch3"><div class="dir">← Previous</div><div class="ttl">Talking in Coordinates</div></a>
+        <a class="next" href="#ch5"><div class="dir">Next →</div><div class="ttl">Fighting: The Combat System</div></a>
+      </div>
+    </section>
+
+    <!-- ================= CHAPTER 5 ================= -->
+    <section class="chapter" id="ch5">
+      <div class="crumb">Part II <span class="of">· Chapter 5 of 13</span></div>
+      <h1 class="chapter-title">Fighting: The Combat System</h1>
+      <p class="lede">Every attack in this game — swinging a sword, firing an arrow, a goblin clawing at you — runs through the same small set of pure functions in one file: <code class="inline">Combat.ts</code>.</p>
+
+      <h2>No dice rolls</h2>
+      <p>Something worth knowing up front: there's no random "miss chance" anywhere in this combat system. If a target is in range and in front of you, the attack lands — always. Combat here is about <em>positioning</em> (are you close enough, facing the right way?), not luck.</p>
+
+      <h2>Cooldowns are just timestamps</h2>
+      <pre class="code"><code>export function canAttack(player: Player, now: number, cooldownMs: number): boolean {
+  return now - player.lastAttackAt &gt;= cooldownMs;
+}</code></pre>
+      <p class="code-cap"><span class="path">src/game/entities/Combat.ts</span> — simplified</p>
+      <p>No timers, no counters ticking down — just "has enough time passed since the last attack?" The same trick (<code class="inline">canBeHit</code>) gives the player a brief invincibility window after being hit, so standing next to a monster doesn't melt your health bar instantly.</p>
+
+      <h2>Melee hits everyone in the cone. Ranged hits the nearest.</h2>
+      <p>A melee swing checks every monster within range <em>and</em> within an angle in front of you (the "attack cone") — and hits <strong>all</strong> of them at once. A ranged shot instead picks only the single <strong>nearest</strong> target, like an arrow that stops at the first thing it hits:</p>
+      <pre class="code"><code>export function selectAttackTargets&lt;T&gt;(origin, facing, range, coneHalfAngleDeg, candidates: readonly T[]): T[]
+export function selectNearestTarget&lt;T&gt;(origin, candidates: readonly T[]): T | undefined</code></pre>
+      <p class="code-cap"><span class="path">src/game/entities/Combat.ts</span></p>
+
+      <figure class="diagram" role="img" aria-label="Two side-by-side top-down diagrams. Left: a melee attack cone hitting every monster inside it. Right: a ranged attack hitting only the single nearest monster.">
+        <svg viewBox="0 0 640 300" xmlns="http://www.w3.org/2000/svg">
+          <line x1="320" y1="10" x2="320" y2="290" stroke="currentColor" opacity="0.25"/>
+          <!-- Melee panel -->
+          <g>
+            <text x="160" y="26" text-anchor="middle" font-size="12.5" font-weight="700" fill="currentColor">Melee: everyone in the cone</text>
+            <path d="M 160 260 L 90 130 A 90 90 0 0 1 230 130 Z" fill="var(--ember-soft)" class="accent" stroke="currentColor" stroke-opacity="0.6"/>
+            <polygon points="160,246 152,262 168,262" fill="currentColor"/>
+            <circle cx="140" cy="150" r="8" fill="currentColor" class="accent"/>
+            <circle cx="190" cy="170" r="8" fill="currentColor" class="accent"/>
+            <circle cx="255" cy="220" r="8" fill="none" stroke="currentColor" opacity="0.45"/>
+            <text x="140" y="132" text-anchor="middle" font-size="10" fill="currentColor" class="accent">hit</text>
+            <text x="190" y="152" text-anchor="middle" font-size="10" fill="currentColor" class="accent">hit</text>
+            <text x="255" y="240" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.6">outside cone</text>
+          </g>
+          <!-- Ranged panel -->
+          <g transform="translate(320,0)">
+            <text x="160" y="26" text-anchor="middle" font-size="12.5" font-weight="700" fill="currentColor">Ranged: only the nearest</text>
+            <line x1="160" y1="246" x2="185" y2="150" stroke="currentColor" class="accent" stroke-width="2"/>
+            <polygon points="160,246 152,262 168,262" fill="currentColor"/>
+            <circle cx="185" cy="150" r="8" fill="currentColor" class="accent"/>
+            <circle cx="235" cy="95" r="8" fill="none" stroke="currentColor" opacity="0.45"/>
+            <circle cx="120" cy="90" r="8" fill="none" stroke="currentColor" opacity="0.45"/>
+            <text x="185" y="132" text-anchor="middle" font-size="10" fill="currentColor" class="accent">hit</text>
+            <text x="235" y="112" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.6">farther — ignored</text>
+          </g>
+        </svg>
+        <figcaption>The triangle is the attacker, facing up. Melee (left) hits every monster inside its cone at once; ranged (right) always hits only the closest candidate, like a single arrow.</figcaption>
+      </figure>
+
+      <h2>Defense subtracts, it doesn't multiply</h2>
+      <pre class="code"><code>export function mitigateDamage(amount: number, defense: number): number {
+  return Math.max(1, amount - defense);
+}</code></pre>
+      <p class="code-cap"><span class="path">src/game/entities/Combat.ts</span></p>
+      <p>Simple subtraction, floored at 1 — no amount of armor makes you completely untouchable. Note this only ever applies to damage <em>you</em> take; monsters have no defense stat of their own, so your attacks always deal their full damage.</p>
+
+      <h2>Weapon "art" is just a costume</h2>
+      <p>Weapons have an <code class="inline">art</code> field — <code class="inline">"sword"</code>, <code class="inline">"axe"</code>, <code class="inline">"fireball"</code>, and so on — but it has <strong>zero</strong> effect on the math above. It only picks which swipe or projectile image gets drawn. A dagger with <code class="inline">art: "sword"</code> would fight identically to one with <code class="inline">art: "dagger"</code> — only the animation would look different.</p>
+
+      <div class="try-box">
+        <div class="label">A real bug, fixed while building this game</div>
+        A missed ranged shot used to fly straight through walls, because its "miss" destination was computed with pure geometry (start point + direction × range) with no idea a wall might be in the way — unlike a <em>hit</em>, which is always a real monster's position, already guaranteed to be somewhere reachable. The fix was <code class="inline">raycastDistance()</code> from Chapter 3: instead of always traveling the weapon's full range, a miss now stops exactly at the nearest wall along its path. Because both the 2D and 3D skins call the same <code class="inline">Combat.ts</code>/<code class="inline">lineOfSight.ts</code> functions, one fix in <code class="inline">src/game/</code> repaired the bug in both skins at once.
+      </div>
+
+      <div class="chapter-nav">
+        <a class="prev" href="#ch4"><div class="dir">← Previous</div><div class="ttl">Player, Monsters, and .logic</div></a>
+        <a class="next" href="#ch6"><div class="dir">Next →</div><div class="ttl">Loot and Gear</div></a>
+      </div>
+    </section>
+
+    <!-- ================= CHAPTER 6 ================= -->
+    <section class="chapter" id="ch6">
+      <div class="crumb">Part II <span class="of">· Chapter 6 of 13</span></div>
+      <h1 class="chapter-title">Loot and Gear</h1>
+      <p class="lede">Every weapon, piece of armor, and accessory in the game is just an entry in a plain array — no magic, no procedural stat rolling. Here's the whole shape:</p>
+
+      <pre class="code"><code>export interface ItemDef {
+  id: string;
+  name: string;
+  kind: "weapon" | "armor" | "accessory" | "consumable";
+  slot?: "weapon" | "armor" | "accessory";
+  rarity: "normal" | "rare" | "epic" | "legendary";
+  stats: ItemStats;
+  spriteKey: string;
+  description: string;
+}</code></pre>
+      <p class="code-cap"><span class="path">src/game/data/types.ts</span></p>
+
+      <p>A real example — a basic sword next to a starter bow:</p>
+      <pre class="code"><code>{ id: "sword_basic", name: "Sword", kind: "weapon", slot: "weapon", rarity: "normal",
+  stats: { damage: 8, cooldownMs: 400, range: 48, art: "sword" }, ... }
+
+{ id: "shortbow_scout", name: "Scout's Shortbow", kind: "weapon", slot: "weapon", rarity: "normal",
+  stats: { damage: 6, cooldownMs: 320, range: 140, ranged: true, art: "arrow" }, ... }</code></pre>
+      <p class="code-cap"><span class="path">src/game/data/weapons.ts</span> — trimmed</p>
+      <p>Notice the bow deals slightly less damage but has almost 3× the range and no <code class="inline">ranged: true</code> flag missing — that flag is literally what tells combat code to use <code class="inline">selectNearestTarget</code> instead of the melee cone from the last chapter.</p>
+
+      <h2>Rarity: a ladder, not a coin flip</h2>
+      <p>There are four rarity tiers, each with a color and a base "drop weight" — how likely a chest is to roll that tier:</p>
+      <div class="rarity-ladder">
+        <div class="rarity-row">
+          <div class="rarity-chip" style="background:#cbd5e1;color:#1a1a24;">Normal</div>
+          <div class="rarity-bar-track"><div class="rarity-bar-fill" style="width:100%;background:#cbd5e1;"></div></div>
+          <div class="rarity-weight">weight 100</div>
+        </div>
+        <div class="rarity-row">
+          <div class="rarity-chip" style="background:#4ea8ff;color:#0a1a2a;">Rare</div>
+          <div class="rarity-bar-track"><div class="rarity-bar-fill" style="width:5%;background:#4ea8ff;"></div></div>
+          <div class="rarity-weight">weight 5</div>
+        </div>
+        <div class="rarity-row">
+          <div class="rarity-chip" style="background:#b35eff;color:#1a0a2a;">Epic</div>
+          <div class="rarity-bar-track"><div class="rarity-bar-fill" style="width:1%;background:#b35eff;"></div></div>
+          <div class="rarity-weight">weight 1</div>
+        </div>
+        <div class="rarity-row">
+          <div class="rarity-chip" style="background:#ffb347;color:#2a1a0a;">Legendary</div>
+          <div class="rarity-bar-track"><div class="rarity-bar-fill" style="width:0.15%;background:#ffb347;"></div></div>
+          <div class="rarity-weight">weight 0.15</div>
+        </div>
+      </div>
+      <p>Those weights aren't percentages by themselves — a chest adds up all the weights of everything it could possibly drop and picks proportionally, the way a raffle with more tickets in the jar is more likely to be drawn. Deeper levels shift the odds toward the rarer tiers, so legendary gear stays a real event even late in a run, not a guarantee.</p>
+
+      <h2>Deciding what to auto-equip</h2>
+      <p>When "auto-equip better gear" is turned on, the game needs to answer: is this new item actually an upgrade? For weapons, it compares <strong>damage per cooldown millisecond</strong> — a rough damage-per-second rate, so a slow hard-hitting mace can fairly be compared against a fast light dagger. For armor, it's just raw defense. Accessories are skipped entirely — their stats (like a speed boost) don't reduce to one comparable number cleanly enough to auto-decide for you.</p>
+      <pre class="code"><code>export function isBetterEquipment(candidate: ItemDef, current: ItemDef): boolean</code></pre>
+      <p class="code-cap"><span class="path">src/game/systems/Inventory.ts</span></p>
+
+      <div class="chapter-nav">
+        <a class="prev" href="#ch5"><div class="dir">← Previous</div><div class="ttl">Fighting: The Combat System</div></a>
+        <a class="next" href="#ch7"><div class="dir">Next →</div><div class="ttl">Growing Stronger, Saving Up</div></a>
+      </div>
+    </section>
+
+    <!-- ================= CHAPTER 7 ================= -->
+    <section class="chapter" id="ch7">
+      <div class="crumb">Part II <span class="of">· Chapter 7 of 13</span></div>
+      <h1 class="chapter-title">Growing Stronger, Saving Up</h1>
+      <p class="lede">This game skips the usual "gain XP, level up" loop. Instead, progress is tied directly to how deep you've gone, and saved progress is deliberately narrow — just enough to feel earned, without needing to remember everything.</p>
+
+      <h2>One stat point per level cleared</h2>
+      <p>Clearing a dungeon level grants exactly one stat point, which you spend into attack, defense, or HP. The trade-off is intentionally uneven:</p>
+      <table class="spec">
+        <tr><th>Stat</th><th class="mono">Points →</th><th>Why</th></tr>
+        <tr><td>Attack</td><td class="mono">+1 damage</td><td>A single point already swings a full hit either way.</td></tr>
+        <tr><td>Defense</td><td class="mono">+1 defense</td><td>Same logic — subtracted straight off incoming damage.</td></tr>
+        <tr><td>HP</td><td class="mono">+5 max HP</td><td>One extra HP alone is comparatively trivial, so it's worth more per point.</td></tr>
+      </table>
+      <p class="code-cap"><span class="path">src/game/systems/PlayerProgression.ts</span></p>
+
+      <h2>Difficulty is one formula, not a big lookup table</h2>
+      <p>There's no hand-authored table of "here's what level 17 looks like." Instead, every difficulty knob is a small formula based on the level number, computed fresh each time:</p>
+      <pre class="code"><code>mazeCols: clamp(10 + n, 10, 30),
+monsterHpMult: 1 + (n - 1) * 0.15,
+monsterDamageMult: 1 + (n - 1) * 0.06,
+bossHpMult: 1 + (n - 1) * 0.3,</code></pre>
+      <p class="code-cap"><span class="path">src/game/systems/LevelConfig.ts</span> — trimmed</p>
+      <p>As <code class="inline">n</code> (the level number) climbs, the maze grows, monsters get tougher a bit faster than their damage grows, and the boss scales up even faster than regular monsters do — deliberately, so a boss fight still feels like a real event even after dozens of regular kills.</p>
+
+      <h2>Saving: ids, not objects</h2>
+      <p>What actually gets written to your browser's storage is surprisingly small — not full item data, just <em>ids</em>:</p>
+      <pre class="code"><code>export interface PlayerProfile {
+  equippedIds: Partial&lt;Record&lt;"weapon"|"armor"|"accessory", string&gt;&gt;;
+  ownedIds: string[];
+  levelNumber: number;
+  highestLevelReached: number;
+  gold: number;
+  statAllocation?: StatAllocation;
+}</code></pre>
+      <p class="code-cap"><span class="path">src/game/systems/SaveManager.ts</span></p>
+      <div class="whats-happening">
+        <div class="label">Why ids instead of full items?</div>
+        <ul>
+          <li>Loading a save looks up each saved id against the current item catalog (<code class="inline">weapons.ts</code>/<code class="inline">items.ts</code>) and pulls in whatever stats that item has <em>right now</em>.</li>
+          <li>That means if a weapon's damage ever gets rebalanced later, old saves don't break or go stale — they just quietly pick up the new numbers.</li>
+          <li>Unknown ids (from an item that's since been removed) are silently skipped rather than crashing the load.</li>
+        </ul>
+      </div>
+      <p>Notably absent from the save: your current HP, the maze layout you're standing in, monster positions, and which keys you're currently holding. Only long-term progress survives between sessions — the exact stuff you'd actually feel bad about losing.</p>
+
+      <div class="chapter-nav">
+        <a class="prev" href="#ch6"><div class="dir">← Previous</div><div class="ttl">Loot and Gear</div></a>
+        <a class="next" href="#ch8"><div class="dir">Next →</div><div class="ttl">The Game Loop and Input</div></a>
+      </div>
+    </section>
+
+    <!-- ================= CHAPTER 8 ================= -->
+    <section class="chapter" id="ch8">
+      <div class="crumb">Part III <span class="of">· Chapter 8 of 13</span></div>
+      <h1 class="chapter-title">The Game Loop and Input</h1>
+      <p class="lede">Everything so far has been about <em>what</em> the game knows. Starting here, Part III is about <em>how</em> that knowledge actually ends up moving on your screen — beginning with the heartbeat that runs the whole show.</p>
+
+      <h2>The loop</h2>
+      <p>Both the 2D and 3D clients run the same basic cycle, roughly 60 times every second: read whatever input happened, update the game state based on it, then draw the current frame. Then do it again.</p>
+
+      <figure class="diagram" role="img" aria-label="A three-step cycle: read input, update game state, draw the frame, looping back to read input again, roughly sixty times per second.">
+        <svg viewBox="0 0 500 460" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <rect x="170" y="10" width="160" height="60" rx="8" fill="none" stroke="currentColor"/>
+          <text x="250" y="45" text-anchor="middle" font-size="13" fill="currentColor">Read input</text>
+
+          <rect x="320" y="190" width="160" height="60" rx="8" fill="var(--ember-soft)" class="accent" stroke="currentColor"/>
+          <text x="400" y="215" text-anchor="middle" font-size="13" fill="currentColor">Update</text>
+          <text x="400" y="233" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.75">move, fight, check pickups</text>
+
+          <rect x="20" y="190" width="160" height="60" rx="8" fill="none" stroke="currentColor"/>
+          <text x="100" y="225" text-anchor="middle" font-size="13" fill="currentColor">Draw the frame</text>
+
+          <line x1="300" y1="55" x2="370" y2="188" stroke="currentColor" marker-end="url(#arrow5)"/>
+          <line x1="330" y1="230" x2="182" y2="220" stroke="currentColor" marker-end="url(#arrow5)"/>
+          <path d="M 60 188 C -30 100 100 -30 200 12" fill="none" stroke="currentColor" marker-end="url(#arrow5)"/>
+          <text x="250" y="330" text-anchor="middle" font-size="12" fill="currentColor" opacity="0.75">~60 times every second</text>
+        </svg>
+        <figcaption>The full loop, repeating continuously while you play: input → update → draw → input again.</figcaption>
+      </figure>
+
+      <p>You saw the "update" step's shape already back in Chapter 4 and 5 — checking cooldowns, calling <code class="inline">Combat.ts</code> functions, moving the player. The "draw" step is the entire subject of the next two chapters.</p>
+
+      <h2>One input model, two sources</h2>
+      <p>Here's a neat trick worth calling out: the game code that reads "which direction is being held right now?" has no idea whether that came from a keyboard or a finger on a touchscreen. Both feed into the exact same tiny piece of shared state:</p>
+      <pre class="code"><code>getDiscreteDirection(): Direction | null {
+  return resolveDirection(this.heldOrder, (dir) =&gt;
+    this.virtualDown[dir] || this.keys[dir].some((k) =&gt; k.isDown)
+  );
+}</code></pre>
+      <p class="code-cap"><span class="path">src/phaser/input/InputController.ts</span> — simplified</p>
+
+      <figure class="diagram" role="img" aria-label="Diagram showing keyboard key events and on-screen touch button presses both feeding into a shared held-direction state, which a single getDiscreteDirection function reads from.">
+        <svg viewBox="0 0 640 260" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <rect x="20" y="20" width="220" height="56" rx="8" fill="none" stroke="currentColor"/>
+          <text x="130" y="53" text-anchor="middle" font-size="12.5" fill="currentColor">Keyboard keydown / keyup</text>
+
+          <rect x="20" y="184" width="220" height="56" rx="8" fill="none" stroke="currentColor"/>
+          <text x="130" y="217" text-anchor="middle" font-size="12.5" fill="currentColor">Touch button press / release</text>
+
+          <rect x="330" y="100" width="230" height="60" rx="8" fill="var(--ember-soft)" class="accent" stroke="currentColor"/>
+          <text x="445" y="126" text-anchor="middle" font-size="12.5" fill="currentColor">heldOrder[] + virtualDown{}</text>
+          <text x="445" y="144" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.75">shared state</text>
+
+          <line x1="240" y1="55" x2="332" y2="115" stroke="currentColor" marker-end="url(#arrow6)"/>
+          <line x1="240" y1="205" x2="332" y2="150" stroke="currentColor" marker-end="url(#arrow6)"/>
+        </svg>
+        <figcaption>Whichever input source the player is using, both funnel into one shared model — the rest of the game only ever asks that model, never the raw keyboard or touch events.</figcaption>
+      </figure>
+
+      <p>The on-screen d-pad's buttons literally call <code class="inline">pressVirtualDirection()</code>/<code class="inline">releaseVirtualDirection()</code> — the exact same methods a keyboard event handler calls internally. From <code class="inline">GameScene</code>'s point of view, there's no difference at all between a key press and a tap.</p>
+
+      <div class="chapter-nav">
+        <a class="prev" href="#ch7"><div class="dir">← Previous</div><div class="ttl">Growing Stronger, Saving Up</div></a>
+        <a class="next" href="#ch9"><div class="dir">Next →</div><div class="ttl">Drawing the World in 2D</div></a>
+      </div>
+    </section>
+
+    <!-- ================= CHAPTER 9 ================= -->
+    <section class="chapter" id="ch9">
+      <div class="crumb">Part III <span class="of">· Chapter 9 of 13</span></div>
+      <h1 class="chapter-title">Drawing the World in 2D</h1>
+      <p class="lede">The 2D client is built with a library called Phaser, organized as ten separate <strong>scenes</strong> — think of each one as its own mini-program that can be started, stopped, or run alongside others.</p>
+
+      <h2>The scene map</h2>
+      <p>Phaser gives you two different ways to switch scenes, and this game uses both on purpose: <code class="inline">scene.start()</code> stops the current scene and replaces it — a clean break. <code class="inline">scene.launch()</code> starts a new scene <em>without</em> stopping the current one, so both run at once — used for overlays like the pause menu, or the HUD sitting on top of gameplay.</p>
+
+      <figure class="diagram" role="img" aria-label="Flowchart of scene transitions: Boot leads to Preload leads to Menu. Menu starts Game, which launches UI in parallel. Game launches Pause or Game Over as overlays, which return to Game or Menu.">
+        <svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <g font-size="12" text-anchor="middle">
+            <rect x="10" y="20" width="90" height="42" rx="7" fill="none" stroke="currentColor"/><text x="55" y="46" fill="currentColor">Boot</text>
+            <rect x="140" y="20" width="100" height="42" rx="7" fill="none" stroke="currentColor"/><text x="190" y="46" fill="currentColor">Preload</text>
+            <rect x="280" y="20" width="100" height="42" rx="7" fill="none" stroke="currentColor"/><text x="330" y="46" fill="currentColor">Menu</text>
+            <rect x="280" y="140" width="100" height="42" rx="7" fill="var(--ember-soft)" class="accent" stroke="currentColor"/><text x="330" y="166" fill="currentColor">Game</text>
+            <rect x="440" y="140" width="100" height="42" rx="7" fill="none" stroke="currentColor"/><text x="490" y="166" fill="currentColor">UI (HUD)</text>
+            <rect x="220" y="270" width="120" height="42" rx="7" fill="none" stroke="currentColor"/><text x="280" y="296" fill="currentColor">Pause overlay</text>
+            <rect x="380" y="270" width="120" height="42" rx="7" fill="none" stroke="currentColor"/><text x="440" y="296" fill="currentColor">Game Over overlay</text>
+          </g>
+          <g stroke="currentColor" fill="none">
+            <line x1="100" y1="41" x2="138" y2="41" marker-end="url(#arrow7)"/>
+            <line x1="240" y1="41" x2="278" y2="41" marker-end="url(#arrow7)"/>
+            <line x1="330" y1="62" x2="330" y2="138" marker-end="url(#arrow7)"/>
+            <line x1="380" y1="161" x2="438" y2="161" stroke-dasharray="4 4" marker-end="url(#arrow7)"/>
+            <line x1="320" y1="182" x2="290" y2="268" stroke-dasharray="4 4" marker-end="url(#arrow7)"/>
+            <line x1="360" y1="182" x2="420" y2="268" stroke-dasharray="4 4" marker-end="url(#arrow7)"/>
+            <path d="M 260 270 C 150 220 250 190 300 184" marker-end="url(#arrow7)"/>
+          </g>
+          <text x="330" y="100" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.75">start() — solid line, replaces</text>
+          <text x="500" y="215" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.75">launch() — dashed, runs in parallel</text>
+        </svg>
+        <figcaption>Solid arrows are <code class="inline">scene.start()</code> (replaces the current scene); dashed arrows are <code class="inline">scene.launch()</code> (runs alongside it).</figcaption>
+      </figure>
+
+      <p>This is also why <code class="inline">GameScene</code> and <code class="inline">UIScene</code> (the sidebar HUD) are two separate scenes rather than one: pausing gameplay (say, to open the inventory) must never pause the HUD along with it, or the sidebar would freeze mid-update. Keeping them separate means <code class="inline">UIScene</code> keeps rendering no matter what state <code class="inline">GameScene</code> is in.</p>
+
+      <h2><code class="inline" style="font-size:0.8em;">GameScene</code>: where the rules meet the picture</h2>
+      <p>This is the scene where everything from Part II gets turned into visuals. Its <code class="inline">update()</code> method, called every frame, is short and readable once you know the pieces:</p>
+      <pre class="code"><code>update(_time: number, delta: number): void {
+  if (this.playerSprite.logic.hp &lt;= 0) {
+    this.scene.pause();
+    this.scene.launch(SCENE_KEYS.GAME_OVER, { levelNumber: this.levelNumber });
+    return;
+  }
+  const direction = this.inputController.getDiscreteDirection();
+  if (direction) this.playerSprite.tryStep(...);
+
+  for (const monster of this.monsterSprites) monster.step(this.playerSprite.x, this.playerSprite.y, delta);
+
+  if (this.inputController.isAttackDown()) this.tryPlayerAttack();
+}</code></pre>
+      <p class="code-cap"><span class="path">src/phaser/scenes/GameScene.ts</span> — trimmed</p>
+      <p>Notice <code class="inline">this.playerSprite.logic.hp</code> — that's Chapter 4's pattern in action. <code class="inline">GameScene</code> mostly reads/writes plain <code class="inline">.logic</code> fields and calls <code class="inline">src/game/</code> functions; Phaser itself only handles the actual drawing, physics, and tweened movement.</p>
+
+      <h2>Turning tiles into pixels</h2>
+      <p><code class="inline">MazeRenderer.ts</code> loops over the tile grid from Chapter 2 and places one image per tile — walls get a physics body for free collision, floor tiles get one of six pre-drawn "edge" images (rotated as needed) depending on which neighboring tiles are walls, so a floor tile next to a wall gets a matching decorative border. This trick — reusing a handful of images at different rotations instead of drawing every possible wall combination by hand — is called <strong>autotiling</strong>, and the logic for picking which variant to use lives back in <code class="inline">src/game/maze/autotile.ts</code>, not in the renderer itself.</p>
+
+      <div class="chapter-nav">
+        <a class="prev" href="#ch8"><div class="dir">← Previous</div><div class="ttl">The Game Loop and Input</div></a>
+        <a class="next" href="#ch10"><div class="dir">Next →</div><div class="ttl">Drawing the World in 3D</div></a>
+      </div>
+    </section>
+
+    <!-- ================= CHAPTER 10 ================= -->
+    <section class="chapter" id="ch10">
+      <div class="crumb">Part III <span class="of">· Chapter 10 of 13</span></div>
+      <h1 class="chapter-title">Drawing the World in 3D</h1>
+      <p class="lede">The 3D client, built with Three.js, is a single big class called <code class="inline">Game3D</code> — its own comment literally describes it as "everything GameScene, UIScene, and PauseScene do together, in one class." Same rules from Part II, first-person view.</p>
+
+      <h2>The camera <em>is</em> the player</h2>
+      <p>There's no player model to see, because there's nothing standing between you and the camera — the camera sits exactly where the player is standing, at a fixed eye height, and looks toward whatever direction the player is facing:</p>
+      <pre class="code"><code>const world = pxToWorld(this.player.x, this.player.y);
+const look = this.player.visualFacing;
+this.camera.position.set(world.x, EYE_HEIGHT, world.z);
+this.camera.lookAt(world.x + look.x, EYE_HEIGHT, world.z + look.y);</code></pre>
+      <p class="code-cap"><span class="path">src/three/Game3D.ts</span> — <code class="inline">EYE_HEIGHT = 1.0</code></p>
+
+      <figure class="diagram" role="img" aria-label="Side view showing the player's position on the ground, the camera positioned at eye height above it, and a horizontal line showing the camera looking toward the direction the player is facing.">
+        <svg viewBox="0 0 500 240" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <line x1="20" y1="200" x2="480" y2="200" stroke="currentColor" opacity="0.4"/>
+          <text x="460" y="218" font-size="10" fill="currentColor" opacity="0.6" text-anchor="end">ground (y = 0)</text>
+          <line x1="90" y1="200" x2="90" y2="90" stroke="currentColor" stroke-dasharray="3 3" opacity="0.6"/>
+          <circle cx="90" cy="90" r="7" fill="currentColor" class="accent"/>
+          <text x="90" y="72" text-anchor="middle" font-size="11.5" fill="currentColor" class="accent">camera / your eyes</text>
+          <text x="90" y="220" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.7">player position</text>
+          <text x="20" y="90" font-size="10" fill="currentColor" opacity="0.6">EYE_HEIGHT = 1.0</text>
+          <line x1="90" y1="90" x2="410" y2="90" stroke="currentColor" class="accent" marker-end="url(#arrow8)"/>
+          <text x="250" y="76" text-anchor="middle" font-size="11" fill="currentColor" class="accent">looking toward facing direction</text>
+        </svg>
+        <figcaption>The camera is glued to the player's tracked x/z position and turns to match their facing — there's no separate 3D player model to see, because your view <em>is</em> the model.</figcaption>
+      </figure>
+
+      <p>Turning doesn't snap instantly, either — the camera eases toward the new facing over 150 milliseconds using a separate <code class="inline">visualFacing</code> value, so a 90° turn feels smooth. The actual gameplay logic (which way an attack fires) still uses the instant, un-eased facing, so combat never feels laggy even while the camera is still catching up visually.</p>
+
+      <h2>Revealing the maze tile by tile</h2>
+      <p>Building 500 separate wall objects would be slow. Instead, <code class="inline">MazeMesh.ts</code> uses a Three.js trick called <strong>instancing</strong>: one wall shape, drawn hundreds of times in a single command, each copy just given a different position. Every tile starts scaled down to nothing (invisible), and gets moved into its real position only once fog-of-war has actually revealed it — and once revealed, a tile stays revealed. (A top-down 2D fog can fade a tile back to black once you walk away, but doing that in first person would look like a hallway ending in a solid wall of black a few steps ahead — so the 3D client deliberately never re-hides anything.)</p>
+
+      <h2>Monsters that always face you</h2>
+      <p>A 3D monster's body is actually flat — a single rectangle with a monster picture stamped on it, called a <strong>billboard</strong>. From the front it looks fully 3D; from the side, it would look like a paper cutout. So every single frame, the game manually rotates each monster to keep facing the camera, no matter where the camera moves:</p>
+      <pre class="code"><code>faceCamera(cameraPos: THREE.Vector3): void {
+  this.bodyMesh.lookAt(cameraPos.x, this.bodyMesh.getWorldPosition(new THREE.Vector3()).y, cameraPos.z);
+}</code></pre>
+      <p class="code-cap"><span class="path">src/three/entities/MonsterController3D.ts</span></p>
+
+      <figure class="diagram" role="img" aria-label="Top-down view showing a flat monster billboard rotating to keep facing the camera as the camera moves from one position to another.">
+        <svg viewBox="0 0 500 260" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <circle cx="250" cy="150" r="6" fill="currentColor" class="accent"/>
+          <text x="250" y="180" text-anchor="middle" font-size="11" fill="currentColor" class="accent">monster billboard</text>
+
+          <circle cx="90" cy="40" r="6" fill="none" stroke="currentColor"/>
+          <text x="90" y="24" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.7">camera position A</text>
+          <line x1="90" y1="40" x2="245" y2="146" stroke="currentColor" stroke-dasharray="3 3" opacity="0.6"/>
+
+          <circle cx="420" cy="60" r="6" fill="none" stroke="currentColor"/>
+          <text x="420" y="44" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.7">camera position B</text>
+          <line x1="420" y1="60" x2="255" y2="146" stroke="currentColor" marker-end="url(#arrow9)"/>
+
+          <line x1="215" y1="120" x2="285" y2="180" stroke="currentColor" class="accent" stroke-width="2" opacity="0.35"/>
+          <line x1="200" y1="115" x2="300" y2="110" stroke="currentColor" class="accent" stroke-width="2"/>
+        </svg>
+        <figcaption>As the camera moves from A to B, the flat billboard's edge (thin line, faded) rotates to a new orientation (thick line) so it's always seen face-on, never edge-on.</figcaption>
+      </figure>
+
+      <div class="chapter-nav">
+        <a class="prev" href="#ch9"><div class="dir">← Previous</div><div class="ttl">Drawing the World in 2D</div></a>
+        <a class="next" href="#ch11"><div class="dir">Next →</div><div class="ttl">Menus and Touch Controls</div></a>
+      </div>
+    </section>
+
+    <!-- ================= CHAPTER 11 ================= -->
+    <section class="chapter" id="ch11">
+      <div class="crumb">Part III <span class="of">· Chapter 11 of 13</span></div>
+      <h1 class="chapter-title">Menus and Touch Controls</h1>
+      <p class="lede">You've now seen both skins individually. This chapter covers how you actually pick one — and how the game adapts itself for players on a phone.</p>
+
+      <h2>2D and 3D share one menu design</h2>
+      <p>Both the 2D menu (<code class="inline">MenuScene.ts</code>, built with Phaser text objects) and the 3D menu (<code class="inline">MenuScreen3D.ts</code>, built with plain HTML/CSS) show the exact same idea: a small "2D / 3D" label pair, where whichever mode you're currently in is shown bold and highlighted, and the other one is a clickable link to switch:</p>
+      <pre class="code"><code>label3D.setInteractive({ useHandCursor: true });
+label3D.on("pointerdown", () =&gt; this.playIn3D());</code></pre>
+      <p class="code-cap"><span class="path">src/phaser/scenes/MenuScene.ts</span></p>
+      <p>An important, easy-to-miss detail: quitting an in-progress <em>3D</em> game back to the menu returns you to the <em>3D</em> menu, not the 2D one — staying in the mode you were already in. Only clicking that menu's own "2D" label actually tears 3D down and rebuilds the 2D client. It's a small distinction, but it's the difference between a menu that respects which mode you're in and one that quietly resets you every time.</p>
+
+      <h2>Swapping the whole skin</h2>
+      <p>This ties back to Chapter 1's diagram. Both skins share one HTML container (<code class="inline">&lt;div id="app"&gt;</code>), and switching modes means completely emptying it and rebuilding it with the other library:</p>
+
+      <figure class="diagram" role="img" aria-label="Diagram showing the shared app container being emptied by destroyPhaser and filled with the Three.js canvas by launch3D, and the reverse happening via disposeThreeD and bootPhaser.">
+        <svg viewBox="0 0 640 260" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow10" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <rect x="230" y="90" width="180" height="80" rx="8" fill="var(--ember-soft)" class="accent" stroke="currentColor"/>
+          <text x="320" y="122" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">#app container</text>
+          <text x="320" y="140" text-anchor="middle" font-size="10.5" fill="currentColor" opacity="0.75">one shared &lt;div&gt;</text>
+
+          <rect x="20" y="20" width="170" height="46" rx="7" fill="none" stroke="currentColor"/>
+          <text x="105" y="48" text-anchor="middle" font-size="12" fill="currentColor">Phaser canvas (2D)</text>
+
+          <rect x="450" y="20" width="170" height="46" rx="7" fill="none" stroke="currentColor"/>
+          <text x="535" y="48" text-anchor="middle" font-size="12" fill="currentColor">Three.js canvas + DOM UI (3D)</text>
+
+          <line x1="190" y1="55" x2="290" y2="92" stroke="currentColor" marker-end="url(#arrow10)"/>
+          <text x="180" y="80" font-size="10.5" fill="currentColor" opacity="0.8">destroyPhaser()</text>
+
+          <line x1="350" y1="92" x2="450" y2="55" stroke="currentColor" marker-end="url(#arrow10)"/>
+          <text x="420" y="82" font-size="10.5" fill="currentColor" opacity="0.8" text-anchor="end">launch3D()</text>
+
+          <line x1="450" y1="66" x2="350" y2="168" stroke="currentColor" stroke-dasharray="4 4" marker-end="url(#arrow10)"/>
+          <text x="440" y="150" font-size="10.5" fill="currentColor" opacity="0.7" text-anchor="middle">disposeThreeD()</text>
+          <line x1="190" y1="168" x2="105" y2="68" stroke="currentColor" stroke-dasharray="4 4" marker-end="url(#arrow10)"/>
+          <text x="150" y="150" font-size="10.5" fill="currentColor" opacity="0.7" text-anchor="middle">bootPhaser()</text>
+        </svg>
+        <figcaption>Switching modes is really just: tear down one library's canvas, empty the container, build the other library's canvas in its place.</figcaption>
+      </figure>
+
+      <h2>Designing for a thumb, not a mouse</h2>
+      <p>One constant, computed once when the page loads, quietly reshapes a huge amount of the UI:</p>
+      <pre class="code"><code>export const IS_TOUCH_DEVICE =
+  typeof window !== "undefined" &amp;&amp;
+  (window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0);</code></pre>
+      <p class="code-cap"><span class="path">src/config/device.ts</span></p>
+      <p>On a touch device, the 2D client actually renders at a <em>smaller</em> design resolution (480×380 for the maze view, versus 800×600 on desktop) rather than just scaling the desktop layout down — a scaled-down desktop layout would leave text and HUD elements too tiny to read. Both <code class="inline">TouchControls.ts</code> (2D) and <code class="inline">TouchControls3D.ts</code> (3D) only get constructed at all when <code class="inline">IS_TOUCH_DEVICE</code> is true, and they render as plain floating HTML buttons on top of the game canvas — not part of Phaser or Three.js at all — specifically so they survive scene changes and level rebuilds without needing to be recreated.</p>
+
+      <div class="chapter-nav">
+        <a class="prev" href="#ch10"><div class="dir">← Previous</div><div class="ttl">Drawing the World in 3D</div></a>
+        <a class="next" href="#ch12"><div class="dir">Next →</div><div class="ttl">How It All Connects</div></a>
+      </div>
+    </section>
+
+    <!-- ================= CHAPTER 12 ================= -->
+    <section class="chapter" id="ch12">
+      <div class="crumb">Part IV <span class="of">· Chapter 12 of 13</span></div>
+      <h1 class="chapter-title">How It All Connects</h1>
+      <p class="lede">Here's the entire boot sequence, start to finish — every piece you've met in this guide, in the order it actually happens the moment the page loads.</p>
+
+      <ol>
+        <li><strong><code class="inline">index.html</code></strong> loads one script tag, pointing at <code class="inline">src/main.ts</code>.</li>
+        <li><strong><code class="inline">main.ts</code></strong> — three lines long — imports and calls <code class="inline">bootPhaser()</code>. That's its entire job.</li>
+        <li><strong><code class="inline">bootPhaser()</code></strong> constructs a <code class="inline">Phaser.Game</code>, registering all ten scenes from Chapter 9 up front, and only <code class="inline">BootScene</code> auto-starts.</li>
+        <li><strong><code class="inline">BootScene</code> → <code class="inline">PreloadScene</code> → <code class="inline">MenuScene</code></strong> — the placeholder-and-real-art textures load, then you land on the title screen from Chapter 11.</li>
+        <li>From here, two paths:
+          <ul>
+            <li><strong>New Game / Continue</strong> → <code class="inline">scene.start(GAME, {'{'} fresh {'}'})</code> → <code class="inline">GameScene</code> calls <code class="inline">generateLevel()</code> (Chapter 2) and you're playing in 2D.</li>
+            <li><strong>Clicking "3D"</strong> → <code class="inline">MenuScene.playIn3D()</code> calls <code class="inline">destroyPhaser()</code>, then dynamically loads and calls <code class="inline">launch3D()</code>, which shows <code class="inline">MenuScreen3D</code> — and picking New Game/Continue <em>there</em> constructs a <code class="inline">Game3D</code>, running the identical <code class="inline">generateLevel()</code> call.</li>
+          </ul>
+        </li>
+      </ol>
+
+      <p>Two small debugging conveniences worth knowing about, both dev-only: <code class="inline">bootPhaser()</code> stashes its game instance on <code class="inline">window.game</code>, and <code class="inline">launch3D()</code> stashes its on <code class="inline">window.game3D</code> — so while developing, you can open the browser console and poke directly at the running game state, in either mode.</p>
+
+      <div class="whats-happening">
+        <div class="label">The one rule that makes all of this possible</div>
+        <ul>
+          <li><code class="inline">src/game/</code> never imports anything from <code class="inline">src/phaser/</code> or <code class="inline">src/three/</code> — the dependency only ever flows one direction.</li>
+          <li>Both skins are free to be built, torn down, and rebuilt independently, because neither one owns any rule the other depends on. That's the "one brain, two skins" idea from Chapter 1, now with every piece in between filled in.</li>
+        </ul>
+      </div>
+
+      <div class="chapter-nav">
+        <a class="prev" href="#ch11"><div class="dir">← Previous</div><div class="ttl">Menus and Touch Controls</div></a>
+        <a class="next" href="#ch13"><div class="dir">Next →</div><div class="ttl">Your Turn</div></a>
+      </div>
+    </section>
+
+    <!-- ================= CHAPTER 13 ================= -->
+    <section class="chapter" id="ch13">
+      <div class="crumb">Part IV <span class="of">· Chapter 13 of 13</span></div>
+      <h1 class="chapter-title">Your Turn</h1>
+      <p class="lede">Reading about code only gets you so far. The fastest way to actually understand any of this is to change a number, save the file, and see what happens. Here are some real, small, safe places to start — all constants you now know the meaning of.</p>
+
+      <ul>
+        <li><strong>Maze feel</strong> — <code class="inline">braidFactor</code> in <code class="inline">src/game/systems/LevelConfig.ts</code> (Chapter 2). Try 0.05 versus 0.8.</li>
+        <li><strong>Vault size</strong> — <code class="inline">MAX_VAULT_SIZE</code> in <code class="inline">src/game/maze/locks.ts</code> (Chapter 2). What happens to the maze if locked vaults are allowed to be huge instead of tiny?</li>
+        <li><strong>A new weapon</strong> — add an entry to the array in <code class="inline">src/game/data/weapons.ts</code> (Chapter 6). Give it a silly name, tune its <code class="inline">damage</code>/<code class="inline">cooldownMs</code>/<code class="inline">range</code>, and see it show up in your inventory.</li>
+        <li><strong>Monster unlock pace</strong> — the <code class="inline">minLevel</code> values in <code class="inline">src/game/data/monsters.ts</code> (Chapter 4). Make the scary tier-6 monsters unlock at level 3 instead of 25, and see how fast that gets uncomfortable.</li>
+        <li><strong>Stat point value</strong> — <code class="inline">HP_PER_POINT</code> in <code class="inline">src/game/systems/PlayerProgression.ts</code> (Chapter 7).</li>
+        <li><strong>Attack cooldown</strong> — <code class="inline">PLAYER_ATTACK_COOLDOWN_MS</code> in <code class="inline">src/config/constants.ts</code> (Chapter 5).</li>
+        <li><strong>The melee swipe's size</strong> — <code class="inline">SWIPE_DURATION_MS</code> and the <code class="inline">ConeGeometry</code> numbers in <code class="inline">src/three/combat/AttackVisuals3D.ts</code> (Chapter 10). This one isn't hypothetical — it's the exact spot that got tuned twice in a row during this project, first made much bigger because the original was too hard to see, then dialed back down because the bigger version overshot. Reading two real commits back to back (in the project's git history) that tweak the same three numbers is a genuinely good way to see how "tuning a game" actually feels in practice.</li>
+      </ul>
+
+      <div class="try-box">
+        <div class="label">Where to look next</div>
+        The <code class="inline">test/</code> folder has a real Vitest test file for almost everything in <code class="inline">src/game/</code> — reading <code class="inline">test/lineOfSight.test.ts</code> or <code class="inline">test/level.test.ts</code> is a great way to see, very concretely, exactly what a function is supposed to do in tricky edge cases (what happens when a wall sits <em>right next</em> to you?). The project's own <code class="inline">README.md</code> covers how to actually run the game and its tests locally.
+      </div>
+
+      <p>That's the whole map. Every system in this game — the maze, the fights, the loot, both ways of drawing it, and the menu that lets you pick — is built from small, plainly-named pieces that each do one job and hand off cleanly to the next. That's not an accident; it's the single idea worth carrying forward into your own projects: keep the parts that decide things separate from the parts that draw things, and both get much easier to reason about.</p>
+
+      <div class="chapter-nav">
+        <a class="prev" href="#ch12"><div class="dir">← Previous</div><div class="ttl">How It All Connects</div></a>
+        <a class="next" href="#ch1"><div class="dir">↺ Back to the start</div><div class="ttl">Welcome: One Brain, Two Skins</div></a>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function () {
+  var chapterIds = ["ch1","ch2","ch3","ch4","ch5","ch6","ch7","ch8","ch9","ch10","ch11","ch12","ch13"];
+
+  function activate(id) {
+    if (chapterIds.indexOf(id) === -1) id = "ch1";
+    for (var i = 0; i < chapterIds.length; i++) {
+      var sec = document.getElementById(chapterIds[i]);
+      if (sec) sec.classList.toggle("active", chapterIds[i] === id);
+    }
+    var links = document.querySelectorAll(".toc a");
+    for (var j = 0; j < links.length; j++) {
+      var isMatch = links[j].getAttribute("href") === "#" + id;
+      links[j].classList.toggle("active", isMatch);
+    }
+    window.scrollTo(0, 0);
+    var sidebar = document.getElementById("sidebar");
+    if (sidebar.classList.contains("open")) {
+      sidebar.classList.remove("open");
+      document.getElementById("navToggle").setAttribute("aria-expanded", "false");
+    }
+  }
+
+  function syncFromHash() {
+    var id = (window.location.hash || "#ch1").replace("#", "");
+    activate(id);
+  }
+
+  window.addEventListener("hashchange", syncFromHash);
+  syncFromHash();
+
+  var toggle = document.getElementById("navToggle");
+  var sidebar = document.getElementById("sidebar");
+  toggle.addEventListener("click", function () {
+    var open = sidebar.classList.toggle("open");
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+})();
+</script>
